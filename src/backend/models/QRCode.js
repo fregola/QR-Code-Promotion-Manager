@@ -13,7 +13,7 @@ const ScanHistorySchema = new mongoose.Schema({
     type: String
   },
   location: {
-    type: String // città/paese se disponibile
+    type: String
   }
 }, { _id: false });
 
@@ -22,7 +22,6 @@ const QRCodeSchema = new mongoose.Schema({
     type: String,
     unique: true,
     default: () => {
-      // Genera un codice alfanumerico di 8 caratteri
       return Math.random().toString(36).substring(2, 6) +
              Math.random().toString(36).substring(2, 6);
     }
@@ -50,7 +49,7 @@ const QRCodeSchema = new mongoose.Schema({
   firstUsedAt: {
     type: Date
   },
-  scanHistory: [ScanHistorySchema], // Array di tutte le scansioni
+  scanHistory: [ScanHistorySchema],
   createdAt: {
     type: Date,
     default: Date.now
@@ -60,7 +59,6 @@ const QRCodeSchema = new mongoose.Schema({
   }
 });
 
-// Middleware per impostare maxUsageCount dal valore della promozione associata
 QRCodeSchema.pre('save', async function(next) {
   if (this.isNew) {
     try {
