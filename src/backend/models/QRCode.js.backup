@@ -1,29 +1,13 @@
 const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 
-const ScanHistorySchema = new mongoose.Schema({
-  scannedAt: {
-    type: Date,
-    default: Date.now
-  },
-  ipAddress: {
-    type: String
-  },
-  userAgent: {
-    type: String
-  },
-  location: {
-    type: String // città/paese se disponibile
-  }
-}, { _id: false });
-
 const QRCodeSchema = new mongoose.Schema({
   code: {
     type: String,
     unique: true,
     default: () => {
       // Genera un codice alfanumerico di 8 caratteri
-      return Math.random().toString(36).substring(2, 6) +
+      return Math.random().toString(36).substring(2, 6) + 
              Math.random().toString(36).substring(2, 6);
     }
   },
@@ -47,10 +31,6 @@ const QRCodeSchema = new mongoose.Schema({
   lastUsedAt: {
     type: Date
   },
-  firstUsedAt: {
-    type: Date
-  },
-  scanHistory: [ScanHistorySchema], // Array di tutte le scansioni
   createdAt: {
     type: Date,
     default: Date.now

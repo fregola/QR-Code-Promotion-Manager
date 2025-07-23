@@ -23,6 +23,8 @@ import Stats from './pages/Stats';
 import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 import PublicQRCodeDetail from './pages/PublicQRCodeDetail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 const theme = createTheme({
   palette: {
@@ -53,6 +55,8 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/verify/:code" element={<QRCodeVerify />} />
         <Route path="/qrcode/:code" element={<PublicQRCodeDetail />} />
         

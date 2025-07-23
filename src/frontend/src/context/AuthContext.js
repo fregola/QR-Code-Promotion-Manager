@@ -1,5 +1,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
+// Configurazione axios per il backend
+axios.defaults.baseURL = 'https://qrcodepromotion.it';
 
 const AuthContext = createContext();
 
