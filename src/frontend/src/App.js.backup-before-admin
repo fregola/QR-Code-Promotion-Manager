@@ -25,7 +25,6 @@ import NotFound from './pages/NotFound';
 import PublicQRCodeDetail from './pages/PublicQRCodeDetail';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
-import AdminDashboard from './pages/AdminDashboard';
 
 const theme = createTheme({
   palette: {
@@ -42,7 +41,7 @@ const theme = createTheme({
 });
 
 function App() {
-  const { isAuthenticated, loading, user } = useAuth();
+  const { isAuthenticated, loading } = useAuth();
 
   // Protected route component
   const ProtectedRoute = ({ children }) => {
@@ -61,7 +60,6 @@ function App() {
         <Route path="/verify/:code" element={<QRCodeVerify />} />
         <Route path="/qrcode/:code" element={<PublicQRCodeDetail />} />
         
-        
         <Route path="/" element={
           <ProtectedRoute>
             <Layout />
@@ -78,7 +76,6 @@ function App() {
           <Route path="scanner" element={<QRCodeScanner />} />
           <Route path="stats" element={<Stats />} />
           <Route path="account" element={<Account />} />
-          <Route path="admin" element={<AdminDashboard />} />
         </Route>
         
         <Route path="*" element={<NotFound />} />

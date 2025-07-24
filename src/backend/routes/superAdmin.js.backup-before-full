@@ -1,0 +1,193 @@
+const express = require('express');
+const User = require('../models/User');
+const Promotion = require('../models/Promotion');
+const QRCode = require('../models/QRCode');
+const { protect } = require('../middleware/auth');
+
+const router = express.Router();
+
+// Middleware per verificare che sia super_admin
+const requireSuperAdmin = (req, res, next) => {
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({
+      success: false,
+      error: 'Accesso negato. Sono richiesti diritti di super amministratore.'
+    });
+  }
+  next();
+};
+
+// @desc    Get all users with stats
+// @route   GET /api/admin/users
+// @access  Super Admin only
+router.get('/users', protect, requireSuperAdmin, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page, 10) || 1;
+    const limit = parseInt(req.query.limit, 10) || 20;
+    const startIndex = (page - 1) * limit;
+
+    const users = await User.find({})
+      .select('-password')
+      .sort('-createdAt')
+      .skip(startIndex)
+      .limit(limit);
+
+    const total = await User.countDocuments();
+
+    // Get stats for each user
+    const usersWithStats = await Promise.all(users.map(async (user) => {
+      const promotions = await Promotion.find({ createdBy: user._id });
+      const promotionIds = promotions.map(p => p._id);
+      const qrCodes = await QRCode.find({ promotion: { $in: promotionIds } });
+      const usedQRCodes = qrCodes.filter(qr => qr.isUsed);
+
+      const totalScans = qrCodes.reduce((sum, qr) => sum + qr.usageCount, 0);
+
+      return {
+        ...user.toObject(),
+        stats: {
+          totalPromotions: promotions.length,
+          totalQRCodes: qrCodes.length,
+          usedQRCodes: usedQRCodes.length,
+          unusedQRCodes: qrCodes.length - usedQRCodes.length,
+          totalScans: totalScans,
+          monthlyPromotions: user.monthlyPromotionsCount || 0,
+          monthlyQRCodes: user.monthlyQrCodesCount || 0
+        }
+      };
+    }));
+
+    const pagination = {};
+    if (startIndex + limit < total) {
+      pagination.next = { page: page + 1, limit };
+    }
+    if (startIndex > 0) {
+      pagination.prev = { page: page - 1, limit };
+    }
+
+    res.json({
+      success: true,
+      count: usersWithStats.length,
+      total,
+      pagination,
+      data: usersWithStats
+    });
+  } catch (error) {
+    console.error('Admin users error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore del server'
+    });
+  }
+});
+
+// @desc    Update user plan
+// @route   PUT /api/admin/users/:id/plan
+// @access  Super Admin only
+router.put('/users/:id/plan', protect, requireSuperAdmin, async (req, res) => {
+  try {
+    const { planType, planExpiresAt } = req.body;
+    
+    if (!['free', 'pro', 'pro_test'].includes(planType)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Tipo di piano non valido'
+      });
+    }
+
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
+
+    const oldPlan = user.planType;
+    user.planType = planType;
+    user.planExpiresAt = planExpiresAt || null;
+    await user.save();
+
+    res.json({
+      success: true,
+      data: user,
+      message: `Piano utente cambiato da ${oldPlan} a ${planType}`
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Errore del server'
+    });
+  }
+});
+
+// @desc    Get system statistics
+// @route   GET /api/admin/stats
+// @access  Super Admin only
+router.get('/stats', protect, requireSuperAdmin, async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    const freeUsers = await User.countDocuments({ planType: 'free' });
+    const proUsers = await User.countDocuments({ planType: 'pro' });
+    const testUsers = await User.countDocuments({ planType: 'pro_test' });
+    
+    const totalPromotions = await Promotion.countDocuments();
+    const activePromotions = await Promotion.countDocuments({ isActive: true });
+    
+    const totalQRCodes = await QRCode.countDocuments();
+    const usedQRCodes = await QRCode.countDocuments({ isUsed: true });
+    
+    const totalScans = await QRCode.aggregate([
+      { $group: { _id: null, total: { $sum: '$usageCount' } } }
+    ]);
+
+    // Recent activity
+    const recentUsers = await User.find({})
+      .select('name email createdAt planType')
+      .sort('-createdAt')
+      .limit(5);
+
+    const recentPromotions = await Promotion.find({})
+      .populate('createdBy', 'name email')
+      .sort('-createdAt')
+      .limit(5);
+
+    res.json({
+      success: true,
+      data: {
+        users: {
+          total: totalUsers,
+          free: freeUsers,
+          pro: proUsers,
+          test: testUsers
+        },
+        promotions: {
+          total: totalPromotions,
+          active: activePromotions,
+          inactive: totalPromotions - activePromotions
+        },
+        qrCodes: {
+          total: totalQRCodes,
+          used: usedQRCodes,
+          unused: totalQRCodes - usedQRCodes
+        },
+        scans: {
+          total: totalScans[0]?.total || 0
+        },
+        recent: {
+          users: recentUsers,
+          promotions: recentPromotions
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Admin stats error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore del server'
+    });
+  }
+});
+
+module.exports = router;

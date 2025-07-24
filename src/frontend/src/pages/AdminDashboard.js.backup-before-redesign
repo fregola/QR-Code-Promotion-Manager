@@ -1,0 +1,243 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import '../styles/AdminDashboard.css';
+
+const AdminDashboard = () => {
+  const [stats, setStats] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [activity, setActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+
+  useEffect(() => {
+    loadAdminData();
+  }, []);
+
+  const loadAdminData = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const config = {
+        headers: { Authorization: `Bearer ${token}` }
+      };
+
+      const [statsRes, usersRes, activityRes] = await Promise.all([
+        axios.get('/api/admin/stats', config),
+        axios.get('/api/admin/users', config),
+        axios.get('/api/admin/activity', config)
+      ]);
+
+      setStats(statsRes.data.data);
+      setUsers(usersRes.data.data);
+      setActivity(activityRes.data.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Admin data loading error:', error);
+      setLoading(false);
+    }
+  };
+
+  const changePlan = async (userId, planType) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/admin/users/${userId}/plan`, 
+        { planType },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      loadAdminData();
+      alert(`Piano cambiato a ${planType}`);
+    } catch (error) {
+      alert('Errore nel cambio piano');
+    }
+  };
+
+  const resetPassword = async (userId, newPassword) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.put(`/api/admin/users/${userId}/reset-password`, 
+        { newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert('Password reset completato');
+    } catch (error) {
+      alert('Errore nel reset password');
+    }
+  };
+
+  if (loading) {
+    return <div className="admin-loading">Caricamento Dashboard Admin...</div>;
+  }
+
+  return (
+    <div className="admin-dashboard">
+      <div className="admin-header">
+        <h1>🔧 Dashboard Super Admin</h1>
+        <p>Controllo completo del sistema QR Code Promotion Manager</p>
+      </div>
+
+      <div className="admin-tabs">
+        <button 
+          className={activeTab === 'overview' ? 'active' : ''}
+          onClick={() => setActiveTab('overview')}
+        >
+          📊 Overview
+        </button>
+        <button 
+          className={activeTab === 'users' ? 'active' : ''}
+          onClick={() => setActiveTab('users')}
+        >
+          👥 Gestione Utenti
+        </button>
+        <button 
+          className={activeTab === 'activity' ? 'active' : ''}
+          onClick={() => setActiveTab('activity')}
+        >
+          📋 Log Attività
+        </button>
+      </div>
+
+      {activeTab === 'overview' && stats && (
+        <div className="overview-section">
+          <div className="stats-grid">
+            <div className="stat-card">
+              <h3>👥 Utenti</h3>
+              <div className="stat-number">{stats.overview.users.total}</div>
+              <div className="stat-details">
+                <span>🟢 Attivi: {stats.overview.users.active}</span>
+                <span>🔴 Inattivi: {stats.overview.users.inactive}</span>
+                <span>🆓 Free: {stats.overview.users.free}</span>
+                <span>💎 Pro: {stats.overview.users.pro}</span>
+                <span>🧪 Test: {stats.overview.users.test}</span>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <h3>📱 Promozioni</h3>
+              <div className="stat-number">{stats.overview.promotions.total}</div>
+              <div className="stat-details">
+                <span>✅ Attive: {stats.overview.promotions.active}</span>
+                <span>❌ Inattive: {stats.overview.promotions.inactive}</span>
+                <span>📅 Questo mese: {stats.overview.promotions.thisMonth}</span>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <h3>🏷️ QR Codes</h3>
+              <div className="stat-number">{stats.overview.qrCodes.total}</div>
+              <div className="stat-details">
+                <span>✅ Utilizzati: {stats.overview.qrCodes.used}</span>
+                <span>⏳ Non utilizzati: {stats.overview.qrCodes.unused}</span>
+                <span>📅 Questo mese: {stats.overview.qrCodes.thisMonth}</span>
+              </div>
+            </div>
+
+            <div className="stat-card">
+              <h3>📈 Scansioni</h3>
+              <div className="stat-number">{stats.overview.scans.total}</div>
+              <div className="stat-details">
+                <span>📊 Totali da sempre</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="top-users">
+            <h3>🏆 Top Users</h3>
+            {stats.topUsers.map(user => (
+              <div key={user._id} className="top-user">
+                <span className="user-name">{user.name} ({user.email})</span>
+                <span className="user-plan">{user.planType}</span>
+                <span className="user-count">{user.promotionCount} promozioni</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'users' && (
+        <div className="users-section">
+          <h3>👥 Gestione Utenti</h3>
+          {users.map(user => (
+            <div key={user._id} className="user-card">
+              <div className="user-info">
+                <h4>{user.name}</h4>
+                <p>{user.email}</p>
+                <span className={`role-badge ${user.role}`}>
+                  {user.role === 'super_admin' ? '⭐ Super Admin' : user.role}
+                </span>
+                <span className={`plan-badge ${user.planType}`}>
+                  {user.planType === 'free' ? '🆓 Free' : 
+                   user.planType === 'pro' ? '💎 Pro' : '🧪 Pro Test'}
+                </span>
+              </div>
+              
+              <div className="user-stats">
+                <div>📱 {user.stats.totalPromotions} promozioni</div>
+                <div>🏷️ {user.stats.totalQRCodes} QR codes</div>
+                <div>📈 {user.stats.totalScans} scansioni</div>
+                <div>📅 Mensili: {user.stats.monthlyPromotions}/{user.planType === 'free' ? '3' : '∞'} promozioni</div>
+                {user.stats.planLimitsReached.promotions && 
+                  <div className="limit-warning">⚠️ Limite promozioni raggiunto</div>
+                }
+              </div>
+
+              <div className="user-actions">
+                <select onChange={(e) => changePlan(user._id, e.target.value)} value={user.planType}>
+                  <option value="free">🆓 Free</option>
+                  <option value="pro">💎 Pro</option>
+                  <option value="pro_test">🧪 Pro Test</option>
+                </select>
+                
+                <button onClick={() => {
+                  const newPassword = prompt('Nuova password (min 6 caratteri):');
+                  if (newPassword && newPassword.length >= 6) {
+                    resetPassword(user._id, newPassword);
+                  }
+                }}>
+                  🔑 Reset Password
+                </button>
+              </div>
+
+              {user.stats.recentScans && user.stats.recentScans.length > 0 && (
+                <div className="recent-activity">
+                  <h5>🕒 Attività Recente</h5>
+                  {user.stats.recentScans.map((scan, index) => (
+                    <div key={index} className="scan-item">
+                      <span>QR: {scan.qrCode}</span>
+                      <span>Promo: {scan.promotion}</span>
+                      <span>{new Date(scan.lastUsedAt).toLocaleString('it-IT')}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {activeTab === 'activity' && (
+        <div className="activity-section">
+          <h3>📋 Log Attività Sistema</h3>
+          <div className="activity-log">
+            {activity.map((item, index) => (
+              <div key={index} className="activity-item">
+                <div className="activity-time">
+                  {new Date(item.timestamp).toLocaleString('it-IT')}
+                </div>
+                <div className="activity-user">
+                  👤 {item.user.name} ({item.user.email})
+                </div>
+                <div className="activity-details">
+                  🏷️ QR: <strong>{item.details.qrCode}</strong> - 
+                  📱 Promo: <strong>{item.details.promotion}</strong> - 
+                  📊 Uso: {item.details.usageCount}/{item.details.maxUsage}
+                  {item.details.isCompleted && <span className="completed">✅ Completato</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AdminDashboard;

@@ -1,0 +1,104 @@
+const express = require('express');
+const User = require('../models/User');
+const { protect } = require('../middleware/auth');
+const { updateAllCounts } = require('../utils/updateCounters');
+
+const router = express.Router();
+
+// @desc    Get current user plan info and limits
+// @route   GET /api/plans/info
+// @access  Private
+router.get('/info', protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    // Aggiorna i contatori per essere sicuri che siano accurati
+    const currentCounts = await updateAllCounts(req.user.id);
+
+    const planInfo = {
+      planType: user.planType,
+      planExpiresAt: user.planExpiresAt,
+      isActive: user.isPlanActive(),
+      currentCounts: currentCounts,
+      limits: {
+        free: {
+          promotions: 3,
+          qrCodes: 5
+        },
+        pro: {
+          promotions: 'unlimited',
+          qrCodes: 'unlimited'
+        },
+        pro_test: {
+          promotions: 'unlimited',
+          qrCodes: 'unlimited'
+        }
+      },
+      canCreatePromotion: user.canCreatePromotion(),
+      canCreateQRCode: user.canCreateQRCode(1),
+      upgradeMessage: user.planType === 'free' ? 'Passa al piano PRO per promozioni e QR codes illimitati!' : null
+    };
+
+    res.status(200).json({
+      success: true,
+      data: planInfo
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+// @desc    Check if user can perform specific action
+// @route   POST /api/plans/check
+// @access  Private
+router.post('/check', protect, async (req, res) => {
+  try {
+    const { action, quantity } = req.body;
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    let result = {};
+
+    switch (action) {
+      case 'create_promotion':
+        result = user.canCreatePromotion();
+        break;
+      case 'create_qrcode':
+        result = user.canCreateQRCode(quantity || 1);
+        break;
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid action specified'
+        });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error'
+    });
+  }
+});
+
+module.exports = router;

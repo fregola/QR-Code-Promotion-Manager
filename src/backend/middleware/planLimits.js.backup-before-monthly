@@ -1,0 +1,108 @@
+const User = require('../models/User');
+
+// Middleware per controllare se l'utente può creare promozioni
+exports.checkPromotionLimit = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const canCreate = user.canCreatePromotion();
+    
+    if (!canCreate.allowed) {
+      return res.status(400).json({
+        success: false,
+        error: canCreate.reason,
+        currentPlan: user.planType,
+        currentCount: user.promotionsCount,
+        limits: {
+          free: { promotions: 3, qrCodes: 5 },
+          pro: { promotions: 'unlimited', qrCodes: 'unlimited' }
+        }
+      });
+    }
+
+    next();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error checking promotion limits'
+    });
+  }
+};
+
+// Middleware per controllare se l'utente può creare QR codes
+exports.checkQRCodeLimit = (quantity = 1) => {
+  return async (req, res, next) => {
+    try {
+      const user = await User.findById(req.user.id);
+      
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found'
+        });
+      }
+
+      // Se la quantità è specificata nel body della richiesta, usala
+      const qrQuantity = req.body.qrCodesCount || quantity;
+      const canCreate = user.canCreateQRCode(qrQuantity);
+      
+      if (!canCreate.allowed) {
+        return res.status(400).json({
+          success: false,
+          error: canCreate.reason,
+          currentPlan: user.planType,
+          currentCount: user.qrCodesCount,
+          requestedQuantity: qrQuantity,
+          limits: {
+            free: { promotions: 3, qrCodes: 5 },
+            pro: { promotions: 'unlimited', qrCodes: 'unlimited' }
+          }
+        });
+      }
+
+      next();
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Server error checking QR code limits'
+      });
+    }
+  };
+};
+
+// Middleware per verificare se il piano è attivo
+exports.checkActivePlan = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    if (!user.isPlanActive()) {
+      return res.status(400).json({
+        success: false,
+        error: 'Your plan has expired. Please renew your subscription.',
+        planType: user.planType,
+        planExpiresAt: user.planExpiresAt
+      });
+    }
+
+    next();
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Server error checking plan status'
+    });
+  }
+};
