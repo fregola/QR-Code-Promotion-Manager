@@ -2,168 +2,157 @@ const mongoose = require('mongoose');
 
 const ActivityLogSchema = new mongoose.Schema({
   // Utente che ha eseguito l'azione
-  user: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
   
-  // Tipo di azione
-  action: {
+  // Tipo di attività
+  activityType: {
     type: String,
     required: true,
     enum: [
       // Autenticazione
-      'login', 'logout', 'password_change', 'profile_update',
+      'login',
+      'logout',
+      'register',
+      'password_change',
+      'password_reset',
+      'profile_update',
       
-      // Gestione Promozioni
-      'promotion_create', 'promotion_update', 'promotion_delete', 
-      'promotion_activate', 'promotion_deactivate',
+      // Navigazione
+      'page_view',
+      'dashboard_access',
+      'admin_panel_access',
       
-      // Gestione QR Codes
-      'qrcode_create', 'qrcode_scan', 'qrcode_download', 'qrcode_view_stats',
+      // Promozioni
+      'promotion_create',
+      'promotion_update',
+      'promotion_delete',
+      'promotion_view',
+      'promotion_activate',
+      'promotion_deactivate',
       
-      // Condivisioni
-      'share_whatsapp', 'share_email', 'share_facebook', 'share_twitter', 
-      'share_linkedin', 'share_copy_link', 'share_direct_link',
+      // QR Codes
+      'qrcode_create',
+      'qrcode_generate',
+      'qrcode_download',
+      'qrcode_scan',
+      'qrcode_delete',
       
-      // Amministrazione (per admin)
-      'admin_user_plan_change', 'admin_user_password_reset', 
-      'admin_user_status_change', 'admin_user_view'
+      // Piani e limiti
+      'plan_upgrade',
+      'plan_downgrade',
+      'limit_reached',
+      
+      // Amministrazione
+      'admin_user_view',
+      'admin_user_edit',
+      'admin_stats_view',
+      'admin_activity_view',
+      
+      // Errori/Sicurezza
+      'login_failed',
+      'unauthorized_access',
+      'api_error',
+      
+      // Altro
+      'file_upload',
+      'export_data',
+      'settings_change'
     ]
   },
   
-  // Dettagli dell'azione
-  details: {
-    // ID della risorsa coinvolta (promozione, QR, ecc.)
-    resourceId: mongoose.Schema.Types.ObjectId,
-    resourceType: {
-      type: String,
-      enum: ['promotion', 'qrcode', 'user']
-    },
-    
-    // Nome/descrizione della risorsa
-    resourceName: String,
-    
-    // Dati aggiuntivi specifici dell'azione
-    metadata: {
-      // Per login: IP, user agent, dispositivo
-      ip: String,
-      userAgent: String,
-      device: String,
-      browser: String,
-      
-      // Per condivisioni: piattaforma, metodo
-      platform: String,
-      method: String,
-      
-      // Per modifiche: valori precedenti e nuovi
-      oldValue: mongoose.Schema.Types.Mixed,
-      newValue: mongoose.Schema.Types.Mixed,
-      
-      // Per scansioni QR: posizione, referrer
-      location: String,
-      referrer: String,
-      
-      // Eventuali note aggiuntive
-      notes: String
-    }
+  // Dettagli dell'attività
+  description: {
+    type: String,
+    required: true
   },
   
-  // Timestamp dell'azione
+  // Dati aggiuntivi specifici per ogni tipo di attività
+  metadata: {
+    // HTTP Info
+    method: String,        // GET, POST, PUT, DELETE
+    endpoint: String,      // /api/promotions, /api/qrcodes, etc.
+    statusCode: Number,    // 200, 404, 500, etc.
+    
+    // Dati specifici dell'attività
+    resourceId: String,    // ID della risorsa coinvolta (promotion, qrcode, etc.)
+    resourceType: String,  // 'promotion', 'qrcode', 'user', etc.
+    resourceName: String,  // Nome della risorsa per riferimento
+    
+    // Dati della richiesta
+    userAgent: String,     // Browser/dispositivo
+    ipAddress: String,     // IP dell'utente
+    
+    // Dati di business
+    planType: String,      // Piano dell'utente al momento dell'azione
+    monthlyUsage: {        // Uso mensile al momento dell'azione
+      promotions: Number,
+      qrCodes: Number
+    },
+    
+    // Dati aggiuntivi variabili (per flessibilità)
+    customData: mongoose.Schema.Types.Mixed
+  },
+  
+  // Informazioni tecniche
+  sessionId: String,       // ID della sessione (se disponibile)
+  
+  // Geolocalizzazione (opzionale)
+  location: {
+    country: String,
+    city: String,
+    region: String
+  },
+  
+  // Timestamp
   timestamp: {
     type: Date,
     default: Date.now
   },
   
-  // Status dell'azione (successo, fallimento, ecc.)
-  status: {
-    type: String,
-    enum: ['success', 'failure', 'pending'],
-    default: 'success'
+  // Durata della richiesta (in millisecondi)
+  duration: Number,
+  
+  // Successo/Errore
+  success: {
+    type: Boolean,
+    default: true
   },
   
-  // Messaggio descrittivo dell'azione
-  message: String
-
+  // Messaggio di errore (se success = false)
+  errorMessage: String,
+  
+  // Priorità del log (per filtrare eventi importanti)
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high', 'critical'],
+    default: 'medium'
+  }
 }, {
-  timestamps: true,
-  // Indici per performance
-  index: [
-    { user: 1, timestamp: -1 },
-    { action: 1, timestamp: -1 },
-    { 'details.resourceType': 1, 'details.resourceId': 1 }
-  ]
+  timestamps: true,  // Aggiunge automaticamente createdAt e updatedAt
+  collection: 'activity_logs'
 });
 
-// Metodo statico per creare un log
-ActivityLogSchema.statics.createLog = async function(logData) {
+// INDICI per performance delle query
+ActivityLogSchema.index({ userId: 1, timestamp: -1 });
+ActivityLogSchema.index({ activityType: 1, timestamp: -1 });
+ActivityLogSchema.index({ timestamp: -1 });
+ActivityLogSchema.index({ 'metadata.endpoint': 1 });
+ActivityLogSchema.index({ success: 1, priority: 1 });
+
+// METODI STATICI per creare log facilmente
+ActivityLogSchema.statics.logActivity = async function(data) {
   try {
-    const log = new this(logData);
+    const log = new this(data);
     await log.save();
     return log;
   } catch (error) {
-    console.error('Error creating activity log:', error);
-    // Non bloccare l'applicazione se il logging fallisce
-    return null;
+    console.error('Error saving activity log:', error);
+    // Non interrompere l'applicazione se il logging fallisce
   }
-};
-
-// Metodo per ottenere i log di un utente
-ActivityLogSchema.statics.getUserLogs = async function(userId, options = {}) {
-  const {
-    limit = 50,
-    skip = 0,
-    action = null,
-    dateFrom = null,
-    dateTo = null
-  } = options;
-  
-  const query = { user: userId };
-  
-  if (action) {
-    query.action = action;
-  }
-  
-  if (dateFrom || dateTo) {
-    query.timestamp = {};
-    if (dateFrom) query.timestamp.$gte = new Date(dateFrom);
-    if (dateTo) query.timestamp.$lte = new Date(dateTo);
-  }
-  
-  return this.find(query)
-    .sort({ timestamp: -1 })
-    .limit(limit)
-    .skip(skip)
-    .populate('user', 'name email')
-    .lean();
-};
-
-// Metodo per statistiche attività utente
-ActivityLogSchema.statics.getUserStats = async function(userId, days = 30) {
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - days);
-  
-  const stats = await this.aggregate([
-    {
-      $match: {
-        user: new mongoose.Types.ObjectId(userId),
-        timestamp: { $gte: startDate }
-      }
-    },
-    {
-      $group: {
-        _id: '$action',
-        count: { $sum: 1 },
-        lastAction: { $max: '$timestamp' }
-      }
-    },
-    {
-      $sort: { count: -1 }
-    }
-  ]);
-  
-  return stats;
 };
 
 module.exports = mongoose.model('ActivityLog', ActivityLogSchema);
