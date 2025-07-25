@@ -6,18 +6,17 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
-  const [activity, setActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [selectedUser, setSelectedUser] = useState(null);
   const [searchFilter, setSearchFilter] = useState('');
+  const [activityFilter, setActivityFilter] = useState('all');
 
   useEffect(() => {
     loadAdminData();
   }, []);
 
   useEffect(() => {
-    // Filtra utenti in base alla ricerca
     if (searchFilter.trim() === '') {
       setFilteredUsers(users);
     } else {
@@ -30,6 +29,16 @@ const AdminDashboard = () => {
     }
   }, [searchFilter, users]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!selectedUser && activeTab === 'users') {
+        loadAdminData();
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [selectedUser, activeTab]);
+
   const loadAdminData = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -37,16 +46,14 @@ const AdminDashboard = () => {
         headers: { Authorization: `Bearer ${token}` }
       };
 
-      const [statsRes, usersRes, activityRes] = await Promise.all([
+      const [statsRes, usersRes] = await Promise.all([
         axios.get('/api/admin/stats', config),
-        axios.get('/api/admin/users', config),
-        axios.get('/api/admin/activity', config)
+        axios.get('/api/admin/users', config)
       ]);
 
       setStats(statsRes.data.data);
       setUsers(usersRes.data.data);
       setFilteredUsers(usersRes.data.data);
-      setActivity(activityRes.data.data);
       setLoading(false);
     } catch (error) {
       console.error('Admin data loading error:', error);
@@ -99,6 +106,10 @@ const AdminDashboard = () => {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       alert('Password reset completato');
+      
+      if (selectedUser && selectedUser.user._id === userId) {
+        loadUserDetails(userId);
+      }
     } catch (error) {
       alert('Errore nel reset password');
     }
@@ -126,12 +137,59 @@ const AdminDashboard = () => {
     }
   };
 
+  const formatActivityMessage = (log) => {
+    const date = new Date(log.timestamp).toLocaleString('it-IT');
+    let icon = '📋';
+    
+    const icons = {
+      'login': '🚪',
+      'logout': '👋',
+      'password_change': '🔑',
+      'profile_update': '👤',
+      'promotion_create': '➕',
+      'promotion_update': '✏️',
+      'promotion_delete': '❌',
+      'promotion_activate': '✅',
+      'promotion_deactivate': '⏸️',
+      'qrcode_create': '🏷️',
+      'qrcode_scan': '📱',
+      'qrcode_download': '📥',
+      'qrcode_view_stats': '📊',
+      'share_whatsapp': '💬',
+      'share_email': '📧',
+      'share_facebook': '📘',
+      'share_twitter': '🐦',
+      'share_linkedin': '💼',
+      'share_copy_link': '🔗',
+      'admin_user_plan_change': '🔧',
+      'admin_user_password_reset': '🔑',
+      'admin_user_status_change': '⚙️'
+    };
+    
+    icon = icons[log.action] || '📋';
+    
+    return {
+      icon,
+      message: log.message,
+      timestamp: date,
+      action: log.action,
+      details: log.details
+    };
+  };
+
+  const getFilteredActivities = (activities) => {
+    if (activityFilter === 'all') return activities.all;
+    return activities.categorized[activityFilter] || [];
+  };
+
   if (loading) {
     return <div className="admin-loading">Caricamento Dashboard Admin...</div>;
   }
 
-  // Se un utente è selezionato, mostra il dettaglio
+  // Dettaglio utente completo
   if (selectedUser) {
+    const filteredActivities = getFilteredActivities(selectedUser.activityLogs);
+    
     return (
       <div className="admin-dashboard">
         <div className="admin-header">
@@ -141,7 +199,8 @@ const AdminDashboard = () => {
           >
             ← Torna alla lista
           </button>
-          <h1>👤 Gestione Utente: {selectedUser.user.name}</h1>
+          <h1>👤 Profilo Completo: {selectedUser.user.name}</h1>
+          <p>Cronologia completa delle attività utente</p>
         </div>
 
         <div className="user-detail-container">
@@ -163,16 +222,25 @@ const AdminDashboard = () => {
                   </span>
                 </div>
                 <div><strong>Registrato:</strong> {new Date(selectedUser.user.createdAt).toLocaleDateString('it-IT')}</div>
+                <div><strong>Ultimo accesso:</strong> 
+                  {selectedUser.engagementMetrics.lastActivity ? 
+                    new Date(selectedUser.engagementMetrics.lastActivity).toLocaleDateString('it-IT') : 
+                    'Mai'
+                  }
+                </div>
+                <div><strong>Sessioni (30gg):</strong> {selectedUser.engagementMetrics.loginFrequency}</div>
               </div>
             </div>
 
             <div className="user-stats-card">
-              <h3>📊 Statistiche</h3>
+              <h3>📊 Statistiche Engagement</h3>
               <div className="stats-grid-simple">
                 <div>📱 {selectedUser.summary.totalPromotions} Promozioni</div>
                 <div>🏷️ {selectedUser.summary.totalQRCodes} QR Codes</div>
-                <div>📈 {selectedUser.summary.totalScans} Scansioni Totali</div>
-                <div>⚡ {selectedUser.summary.activeQRCodes} QR Attivi</div>
+                <div>📈 {selectedUser.summary.totalScans} Scansioni</div>
+                <div>📋 {selectedUser.summary.totalActivityLogs} Azioni Totali</div>
+                <div>⚡ {selectedUser.engagementMetrics.actionsLast30Days} Azioni (30gg)</div>
+                <div>🔄 {selectedUser.engagementMetrics.averageSessionsPerWeek} Sessioni/settimana</div>
               </div>
             </div>
           </div>
@@ -212,23 +280,47 @@ const AdminDashboard = () => {
           </div>
 
           <div className="user-activity-section">
-            <h3>📋 Cronologia Attività</h3>
+            <div className="activity-header">
+              <h3>📋 Cronologia Completa Attività</h3>
+              <div className="activity-filters">
+                <select 
+                  value={activityFilter} 
+                  onChange={(e) => setActivityFilter(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="all">🔍 Tutte le attività</option>
+                  <option value="authentication">🚪 Autenticazione</option>
+                  <option value="promotions">📱 Promozioni</option>
+                  <option value="qrcodes">🏷️ QR Codes</option>
+                  <option value="sharing">📤 Condivisioni</option>
+                  <option value="admin_actions">🔧 Azioni Admin</option>
+                </select>
+              </div>
+            </div>
+            
             <div className="activity-timeline">
-              {selectedUser.activityTimeline.length > 0 ? (
-                selectedUser.activityTimeline.map((activity, index) => (
-                  <div key={index} className="timeline-item">
-                    <div className="timeline-date">
-                      {new Date(activity.date).toLocaleString('it-IT')}
+              {filteredActivities.length > 0 ? (
+                filteredActivities.map((log, index) => {
+                  const formatted = formatActivityMessage(log);
+                  return (
+                    <div key={index} className="timeline-item">
+                      <div className="timeline-icon">{formatted.icon}</div>
+                      <div className="timeline-content">
+                        <div className="timeline-date">{formatted.timestamp}</div>
+                        <div className="timeline-message">{formatted.message}</div>
+                        {log.details.metadata && (
+                          <div className="timeline-metadata">
+                            {log.details.metadata.ip && <span>📍 IP: {log.details.metadata.ip}</span>}
+                            {log.details.metadata.browser && <span>🌐 Browser: {log.details.metadata.browser}</span>}
+                            {log.details.metadata.device && <span>📱 Device: {log.details.metadata.device}</span>}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="timeline-content">
-                      <strong>QR Scansionato:</strong> {activity.details.qrCode}<br />
-                      <strong>Promozione:</strong> {activity.details.promotion}<br />
-                      <strong>Utilizzi:</strong> {activity.details.usageCount}/{activity.details.maxUsage}
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                <p>Nessuna attività registrata</p>
+                <p>Nessuna attività trovata per il filtro selezionato</p>
               )}
             </div>
           </div>
@@ -256,6 +348,7 @@ const AdminDashboard = () => {
     );
   }
 
+  // Dashboard principale (solo Overview e Gestione Utenti)
   return (
     <div className="admin-dashboard">
       <div className="admin-header">
@@ -275,12 +368,6 @@ const AdminDashboard = () => {
           onClick={() => setActiveTab('users')}
         >
           👥 Gestione Utenti
-        </button>
-        <button 
-          className={activeTab === 'activity' ? 'active' : ''}
-          onClick={() => setActiveTab('activity')}
-        >
-          📋 Log Sistema
         </button>
       </div>
 
@@ -379,37 +466,13 @@ const AdminDashboard = () => {
                         onClick={() => loadUserDetails(user._id)}
                         className="view-details-btn"
                       >
-                        👁️ Dettagli
+                        👁️ Profilo Completo
                       </button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'activity' && (
-        <div className="activity-section">
-          <h3>📋 Log Attività Sistema</h3>
-          <div className="activity-log">
-            {activity.map((item, index) => (
-              <div key={index} className="activity-item">
-                <div className="activity-time">
-                  {new Date(item.timestamp).toLocaleString('it-IT')}
-                </div>
-                <div className="activity-user">
-                  👤 {item.user.name} ({item.user.email})
-                </div>
-                <div className="activity-details">
-                  🏷️ QR: <strong>{item.details.qrCode}</strong> - 
-                  📱 Promo: <strong>{item.details.promotion}</strong> - 
-                  📊 Uso: {item.details.usageCount}/{item.details.maxUsage}
-                  {item.details.isCompleted && <span className="completed">✅</span>}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       )}

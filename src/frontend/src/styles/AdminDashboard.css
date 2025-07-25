@@ -71,6 +71,7 @@
   border-radius: 8px;
   transition: all 0.3s ease;
   color: #6c757d;
+  pointer-events: auto;
 }
 
 .admin-tabs button:hover {

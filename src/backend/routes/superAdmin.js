@@ -8,6 +8,10 @@ const crypto = require('crypto');
 
 const router = express.Router();
 
+const ActivityLog = require('../models/ActivityLog');
+const { createActivityLog } = require('../middleware/activityLogger');
+
+
 // Middleware per verificare che sia super_admin
 const requireSuperAdmin = (req, res, next) => {
   if (req.user.role !== 'super_admin') {
@@ -115,7 +119,7 @@ router.get('/users', protect, requireSuperAdmin, async (req, res) => {
   }
 });
 
-// @desc    Get single user detailed info
+// @desc    Get single user detailed info with complete activity log
 // @route   GET /api/admin/users/:id
 // @access  Super Admin only
 router.get('/users/:id', protect, requireSuperAdmin, async (req, res) => {
@@ -129,6 +133,14 @@ router.get('/users/:id', protect, requireSuperAdmin, async (req, res) => {
       });
     }
 
+    // Log admin access
+    await createActivityLog(req.user._id, 'admin_user_view', {
+      resourceId: user._id,
+      resourceType: 'user',
+      resourceName: user.name,
+      message: `Admin ha visualizzato il profilo di ${user.name} (${user.email})`
+    }, req);
+
     // Get all user's promotions with QR codes
     const promotions = await Promotion.find({ createdBy: user._id })
       .populate('qrCodes')
@@ -140,21 +152,55 @@ router.get('/users/:id', protect, requireSuperAdmin, async (req, res) => {
       .populate('promotion', 'name description')
       .sort('-lastUsedAt');
 
-    // Activity timeline (last 20 activities)
-    const activityTimeline = allQRCodes
-      .filter(qr => qr.lastUsedAt)
-      .sort((a, b) => new Date(b.lastUsedAt) - new Date(a.lastUsedAt))
-      .slice(0, 20)
-      .map(qr => ({
-        type: 'qr_scan',
-        date: qr.lastUsedAt,
-        details: {
-          qrCode: qr.code,
-          promotion: qr.promotion.name,
-          usageCount: qr.usageCount,
-          maxUsage: qr.maxUsageCount
-        }
-      }));
+    // Get complete activity log for this user
+    const activityLogs = await ActivityLog.getUserLogs(user._id, {
+      limit: 100 // Ultimi 100 eventi
+    });
+
+    // Get activity statistics
+    const activityStats = await ActivityLog.getUserStats(user._id, 30); // Ultimi 30 giorni
+
+    // Organize activity by categories
+    const categorizedActivity = {
+      authentication: activityLogs.filter(log => 
+        ['login', 'logout', 'password_change', 'profile_update'].includes(log.action)
+      ),
+      promotions: activityLogs.filter(log => 
+        log.action.startsWith('promotion_')
+      ),
+      qrcodes: activityLogs.filter(log => 
+        log.action.startsWith('qrcode_')
+      ),
+      sharing: activityLogs.filter(log => 
+        log.action.startsWith('share_')
+      ),
+      admin_actions: activityLogs.filter(log => 
+        log.action.startsWith('admin_')
+      )
+    };
+
+    // Calculate user engagement metrics
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const recentActivity = activityLogs.filter(log => 
+      new Date(log.timestamp) >= thirtyDaysAgo
+    );
+
+    const engagementMetrics = {
+      totalActions: activityLogs.length,
+      actionsLast30Days: recentActivity.length,
+      lastActivity: activityLogs.length > 0 ? activityLogs[0].timestamp : null,
+      mostCommonAction: activityStats.length > 0 ? activityStats[0]._id : null,
+      loginFrequency: categorizedActivity.authentication.filter(log => 
+        log.action === 'login' && new Date(log.timestamp) >= thirtyDaysAgo
+      ).length,
+      averageSessionsPerWeek: Math.round(
+        (categorizedActivity.authentication.filter(log => 
+          log.action === 'login' && new Date(log.timestamp) >= thirtyDaysAgo
+        ).length / 4) * 10
+      ) / 10
+    };
 
     res.json({
       success: true,
@@ -162,12 +208,18 @@ router.get('/users/:id', protect, requireSuperAdmin, async (req, res) => {
         user,
         promotions,
         qrCodes: allQRCodes,
-        activityTimeline,
+        activityLogs: {
+          all: activityLogs,
+          categorized: categorizedActivity,
+          stats: activityStats
+        },
+        engagementMetrics,
         summary: {
           totalPromotions: promotions.length,
           totalQRCodes: allQRCodes.length,
           totalScans: allQRCodes.reduce((sum, qr) => sum + qr.usageCount, 0),
-          activeQRCodes: allQRCodes.filter(qr => !qr.isUsed).length
+          activeQRCodes: allQRCodes.filter(qr => !qr.isUsed).length,
+          totalActivityLogs: activityLogs.length
         }
       }
     });
