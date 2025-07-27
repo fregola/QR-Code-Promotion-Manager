@@ -11,6 +11,8 @@ import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import PromotionsList from './pages/PromotionsList';
 import PromotionCreate from './pages/PromotionCreate';
 import PromotionDetail from './pages/PromotionDetail';
@@ -24,6 +26,12 @@ import Account from './pages/Account';
 import NotFound from './pages/NotFound';
 import PublicQRCodeDetail from './pages/PublicQRCodeDetail';
 
+// NUOVE PAGINE LEGALI
+import TermsAndConditions from './pages/TermsAndConditions';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import CookiePolicy from './pages/CookiePolicy';
+
+// Create theme
 const theme = createTheme({
   palette: {
     primary: {
@@ -31,9 +39,6 @@ const theme = createTheme({
     },
     secondary: {
       main: '#dc004e',
-    },
-    background: {
-      default: '#f5f5f5',
     },
   },
 });
@@ -51,11 +56,20 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Routes>
+        {/* ROUTE PUBBLICHE */}
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password/:token" element={<ResetPassword />} />
         <Route path="/verify/:code" element={<QRCodeVerify />} />
         <Route path="/qrcode/:code" element={<PublicQRCodeDetail />} />
         
+        {/* NUOVE ROUTE LEGALI */}
+        <Route path="/terms" element={<TermsAndConditions />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/cookies" element={<CookiePolicy />} />
+        
+        {/* ROUTE PROTETTE */}
         <Route path="/" element={
           <ProtectedRoute>
             <Layout />

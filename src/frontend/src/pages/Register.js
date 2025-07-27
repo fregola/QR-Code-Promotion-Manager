@@ -16,8 +16,20 @@ import {
   AccordionSummary,
   AccordionDetails,
   Grid,
+  FormControlLabel,
+  Checkbox,
+  FormControl,
+  FormGroup,
+  Divider,
 } from '@mui/material';
-import { Visibility, VisibilityOff, ExpandMore as ExpandMoreIcon } from '@mui/icons-material';
+import { 
+  Visibility, 
+  VisibilityOff, 
+  ExpandMore as ExpandMoreIcon,
+  Security,
+  Policy,
+  Cookie
+} from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 
 const Register = () => {
@@ -35,6 +47,11 @@ const Register = () => {
     vatNumber: '',
     phoneNumber: '',
     website: '',
+    // NUOVI CAMPI LEGALI
+    acceptedTerms: false,
+    acceptedPrivacy: false,
+    acceptedCookies: false,
+    acceptedMarketing: false,
   });
   const [formErrors, setFormErrors] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -73,14 +90,30 @@ const Register = () => {
       errors.confirmPassword = 'Le password non corrispondono';
     }
 
+    // VALIDAZIONE CONSENSI LEGALI OBBLIGATORI
+    if (!formData.acceptedTerms) {
+      errors.acceptedTerms = 'Devi accettare i Termini e Condizioni per procedere';
+    }
+
+    if (!formData.acceptedPrivacy) {
+      errors.acceptedPrivacy = 'Devi accettare la Privacy Policy per procedere';
+    }
+
+    if (!formData.acceptedCookies) {
+      errors.acceptedCookies = 'Devi accettare la Cookie Policy per procedere';
+    }
+
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-    // Clear field error when typing
+    const { name, value, type, checked } = e.target;
+    setFormData({ 
+      ...formData, 
+      [name]: type === 'checkbox' ? checked : value 
+    });
+    // Clear field error when typing/clicking
     if (formErrors[name]) {
       setFormErrors({ ...formErrors, [name]: '' });
     }
@@ -112,10 +145,14 @@ const Register = () => {
         postalCode, 
         vatNumber, 
         phoneNumber, 
-        website 
+        website,
+        acceptedTerms,
+        acceptedPrivacy,
+        acceptedCookies,
+        acceptedMarketing
       } = formData;
       
-      // Includi i campi aziendali opzionali nella registrazione
+      // Includi i campi aziendali opzionali e consensi legali nella registrazione
       const success = await register({ 
         name, 
         email, 
@@ -127,7 +164,11 @@ const Register = () => {
         postalCode, 
         vatNumber, 
         phoneNumber, 
-        website 
+        website,
+        acceptedTerms,
+        acceptedPrivacy,
+        acceptedCookies,
+        acceptedMarketing
       });
       
       if (success) {
@@ -137,10 +178,10 @@ const Register = () => {
   };
 
   return (
-    <Container component="main" maxWidth="xs">
+    <Container component="main" maxWidth="sm">
       <Box
         sx={{
-          marginTop: 8,
+          marginTop: 4,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -168,7 +209,7 @@ const Register = () => {
           )}
           {!error && (
             <Alert severity="info" sx={{ mt: 2, width: '100%' }}>
-              Assicurati di utilizzare un'email non ancora registrata e una password di almeno 6 caratteri.
+              Compila tutti i campi obbligatori e accetta i consensi legali per completare la registrazione.
             </Alert>
           )}
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
@@ -257,7 +298,105 @@ const Register = () => {
                 ),
               }}
             />
-            <Accordion sx={{ mt: 3, mb: 2, width: '100%' }}>
+
+            {/* SEZIONE CONSENSI LEGALI OBBLIGATORI */}
+            <Box sx={{ mt: 3, mb: 2 }}>
+              <Typography variant="h6" gutterBottom sx={{ color: 'primary.main', display: 'flex', alignItems: 'center' }}>
+                <Security sx={{ mr: 1 }} />
+                Consensi Legali Obbligatori
+              </Typography>
+              <Divider sx={{ mb: 2 }} />
+              
+              <FormControl component="fieldset" fullWidth error={!!formErrors.acceptedTerms || !!formErrors.acceptedPrivacy || !!formErrors.acceptedCookies}>
+                <FormGroup>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.acceptedTerms}
+                        onChange={handleChange}
+                        name="acceptedTerms"
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        * Accetto i{' '}
+                        <Link component={RouterLink} to="/terms" target="_blank" rel="noopener">
+                          Termini e Condizioni
+                        </Link>
+                      </Typography>
+                    }
+                  />
+                  {formErrors.acceptedTerms && (
+                    <FormHelperText error>{formErrors.acceptedTerms}</FormHelperText>
+                  )}
+
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.acceptedPrivacy}
+                        onChange={handleChange}
+                        name="acceptedPrivacy"
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        * Accetto la{' '}
+                        <Link component={RouterLink} to="/privacy" target="_blank" rel="noopener">
+                          Privacy Policy
+                        </Link>
+                      </Typography>
+                    }
+                  />
+                  {formErrors.acceptedPrivacy && (
+                    <FormHelperText error>{formErrors.acceptedPrivacy}</FormHelperText>
+                  )}
+
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={formData.acceptedCookies}
+                        onChange={handleChange}
+                        name="acceptedCookies"
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2">
+                        * Accetto la{' '}
+                        <Link component={RouterLink} to="/cookies" target="_blank" rel="noopener">
+                          Cookie Policy
+                        </Link>
+                      </Typography>
+                    }
+                  />
+                  {formErrors.acceptedCookies && (
+                    <FormHelperText error>{formErrors.acceptedCookies}</FormHelperText>
+                  )}
+
+                  <Box sx={{ mt: 1 }}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.acceptedMarketing}
+                          onChange={handleChange}
+                          name="acceptedMarketing"
+                          color="secondary"
+                        />
+                      }
+                      label={
+                        <Typography variant="body2" color="text.secondary">
+                          Acconsento a ricevere comunicazioni promozionali e newsletter (opzionale)
+                        </Typography>
+                      }
+                    />
+                  </Box>
+                </FormGroup>
+              </FormControl>
+            </Box>
+
+            <Accordion sx={{ mt: 2, mb: 2, width: '100%' }}>
               <AccordionSummary
                 expandIcon={<ExpandMoreIcon />}
                 aria-controls="business-info-content"
@@ -348,7 +487,8 @@ const Register = () => {
               type="submit"
               fullWidth
               variant="contained"
-              sx={{ mt: 1, mb: 2 }}
+              sx={{ mt: 2, mb: 2 }}
+              size="large"
             >
               Registrati
             </Button>

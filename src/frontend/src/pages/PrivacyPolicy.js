@@ -1,0 +1,78 @@
+import React from 'react';
+import { Container, Typography, Box, Paper, Divider } from '@mui/material';
+
+const PrivacyPolicy = () => {
+  return (
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Paper elevation={3} sx={{ p: 4 }}>
+        <Typography variant="h3" component="h1" gutterBottom align="center">
+          Privacy Policy
+        </Typography>
+        <Typography variant="subtitle1" align="center" color="text.secondary" sx={{ mb: 4 }}>
+          Ultimo aggiornamento: {new Date().toLocaleDateString('it-IT')}
+        </Typography>
+        
+        <Divider sx={{ mb: 4 }} />
+
+        <Box sx={{ '& > *': { mb: 3 } }}>
+          <Typography variant="h5" component="h2">
+            1. Informazioni che Raccogliamo
+          </Typography>
+          <Typography variant="body1">
+            Raccogliamo informazioni che ci fornisci direttamente quando ti registri e utilizzi il nostro servizio, 
+            inclusi nome, email, informazioni aziendali e dati di utilizzo del servizio.
+          </Typography>
+
+          <Typography variant="h5" component="h2">
+            2. Come Utilizziamo le Informazioni
+          </Typography>
+          <Typography variant="body1">
+            Utilizziamo le tue informazioni per fornire e migliorare il servizio, comunicare con te, 
+            personalizzare la tua esperienza e garantire la sicurezza della piattaforma.
+          </Typography>
+
+          <Typography variant="h5" component="h2">
+            3. Condivisione delle Informazioni
+          </Typography>
+          <Typography variant="body1">
+            Non vendiamo, scambiamo o trasferiamo le tue informazioni personali a terzi senza il tuo consenso, 
+            eccetto quando necessario per fornire il servizio o quando richiesto dalla legge.
+          </Typography>
+
+          <Typography variant="h5" component="h2">
+            4. Sicurezza dei Dati
+          </Typography>
+          <Typography variant="body1">
+            Implementiamo misure di sicurezza appropriate per proteggere le tue informazioni personali 
+            contro accesso non autorizzato, alterazione, divulgazione o distruzione.
+          </Typography>
+
+          <Typography variant="h5" component="h2">
+            5. I Tuoi Diritti
+          </Typography>
+          <Typography variant="body1">
+            Hai il diritto di accedere, correggere, cancellare o limitare l'uso delle tue informazioni personali. 
+            Puoi anche opporti al trattamento e richiedere la portabilità dei dati secondo il GDPR.
+          </Typography>
+
+          <Typography variant="h5" component="h2">
+            6. Cookie e Tecnologie Simili
+          </Typography>
+          <Typography variant="body1">
+            Utilizziamo cookie e tecnologie simili per migliorare la funzionalità del sito e analizzare l'utilizzo. 
+            Per maggiori dettagli, consulta la nostra Cookie Policy.
+          </Typography>
+
+          <Typography variant="h5" component="h2">
+            7. Contatti
+          </Typography>
+          <Typography variant="body1">
+            Per domande sulla privacy o per esercitare i tuoi diritti, contattaci all'indirizzo: info@qrcodepromotion.it
+          </Typography>
+        </Box>
+      </Paper>
+    </Container>
+  );
+};
+
+export default PrivacyPolicy;
