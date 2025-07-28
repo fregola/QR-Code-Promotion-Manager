@@ -82,11 +82,20 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Update user profile
-  const updateProfile = async (userData) => {
+  const updateProfile = async (userData, isFormData = false) => {
     try {
-      const res = await axios.put('/api/auth/updateprofile', userData);
+      const headers = {};
+      
+      // Se non è FormData, aggiungi Content-Type JSON
+      if (!isFormData) {
+        headers['Content-Type'] = 'application/json';
+      }
+      
+      const res = await axios.put('/api/auth/updateprofile', userData, {
+        headers
+      });
       setUser(res.data.data);
-      return { success: true };
+      return { success: true, data: res.data.data };
     } catch (err) {
       setError(err.response?.data?.error || 'Aggiornamento profilo fallito');
       return { success: false, error: err.response?.data?.error || 'Aggiornamento profilo fallito' };

@@ -246,9 +246,13 @@ exports.updateProfile = async (req, res) => {
       postalCode: req.body.postalCode,
       vatNumber: req.body.vatNumber,
       phoneNumber: req.body.phoneNumber,
-      website: req.body.website,
-      businessLogo: req.body.businessLogo
+      website: req.body.website
     };
+
+    // Se è stato caricato un file logo, aggiungi il percorso
+    if (req.file) {
+      fieldsToUpdate.businessLogo = `/uploads/logos/${req.file.filename}`;
+    }
 
     const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
       new: true,
@@ -374,6 +378,43 @@ exports.resetPassword = async (req, res) => {
 
   } catch (error) {
     console.error('Reset password error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Errore del server'
+    });
+  }
+};
+
+// @desc    Update user profile with base64 logo (legacy support)
+// @route   PUT /api/auth/profile-with-logo
+// @access  Private
+exports.updateProfileWithLogo = async (req, res) => {
+  try {
+    const fieldsToUpdate = {
+      name: req.body.name,
+      email: req.body.email,
+      businessName: req.body.businessName,
+      businessType: req.body.businessType,
+      address: req.body.address,
+      city: req.body.city,
+      postalCode: req.body.postalCode,
+      vatNumber: req.body.vatNumber,
+      phoneNumber: req.body.phoneNumber,
+      website: req.body.website,
+      businessLogo: req.body.businessLogo // base64 string per compatibilità
+    };
+
+    const user = await User.findByIdAndUpdate(req.user.id, fieldsToUpdate, {
+      new: true,
+      runValidators: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    console.error('Update profile with logo error:', error);
     res.status(500).json({
       success: false,
       error: 'Errore del server'

@@ -90,47 +90,47 @@ const Account = () => {
     setSuccess(null);
 
     try {
-      // Include name, email and business fields for profile update
-      const profileData = {
-        name: formData.name,
-        email: formData.email,
-        // Includi i campi aziendali
-        businessName: formData.businessName,
-        businessType: formData.businessType,
-        address: formData.address,
-        city: formData.city,
-        postalCode: formData.postalCode,
-        vatNumber: formData.vatNumber,
-        phoneNumber: formData.phoneNumber,
-        website: formData.website,
-        businessLogo: formData.businessLogo,
-      };
-
-      // Se è stato caricato un nuovo file logo, gestisci l'upload
+      // Crea FormData per supportare l'upload di file
+      const formDataToSend = new FormData();
+      
+      // Aggiungi i campi del profilo
+      formDataToSend.append('name', formData.name);
+      formDataToSend.append('email', formData.email);
+      formDataToSend.append('businessName', formData.businessName || '');
+      formDataToSend.append('businessType', formData.businessType || '');
+      formDataToSend.append('address', formData.address || '');
+      formDataToSend.append('city', formData.city || '');
+      formDataToSend.append('postalCode', formData.postalCode || '');
+      formDataToSend.append('vatNumber', formData.vatNumber || '');
+      formDataToSend.append('phoneNumber', formData.phoneNumber || '');
+      formDataToSend.append('website', formData.website || '');
+      
+      // Se è stato caricato un nuovo file logo, aggiungilo
       if (logoFile) {
-        // Converti il file in base64 per l'invio al server
-        const reader = new FileReader();
-        reader.readAsDataURL(logoFile);
-        reader.onloadend = async () => {
-          profileData.businessLogo = reader.result;
-          await submitProfileUpdate(profileData);
-        };
-      } else {
-        await submitProfileUpdate(profileData);
+        formDataToSend.append('businessLogo', logoFile);
       }
+
+      await submitProfileUpdate(formDataToSend, true); // true indica che è FormData
     } catch (err) {
       setError('Errore durante l\'aggiornamento del profilo');
       setLoading(false);
     }
   };
 
-  const submitProfileUpdate = async (profileData) => {
+  const submitProfileUpdate = async (profileData, isFormData = false) => {
     try {
-      const result = await updateProfile(profileData);
+      const result = await updateProfile(profileData, isFormData);
       if (result.success) {
         setSuccess('Profilo aggiornato con successo');
         // Reset del file logo dopo l'upload
         setLogoFile(null);
+        // Aggiorna formData con i nuovi dati se disponibili
+        if (result.data && result.data.businessLogo) {
+          setFormData(prev => ({
+            ...prev,
+            businessLogo: result.data.businessLogo
+          }));
+        }
       } else {
         setError(result.error || 'Errore durante l\'aggiornamento del profilo');
       }
