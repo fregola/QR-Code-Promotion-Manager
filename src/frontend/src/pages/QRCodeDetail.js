@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Typography,
@@ -13,7 +13,11 @@ import {
   Divider,
   Grid,
   Chip,
-  Snackbar
+  Snackbar,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import {
   CheckCircle as CheckCircleIcon,
@@ -21,9 +25,11 @@ import {
   AccessTime as AccessTimeIcon,
   CalendarToday as CalendarTodayIcon,
   Person as PersonIcon,
-  Share as ShareIcon
+  Share as ShareIcon,
+  History
 } from '@mui/icons-material';
 import axios from 'axios';
+import ShareDialog from '../components/ShareDialog';
 
 const QRCodeDetail = () => {
   const { id } = useParams();
@@ -33,6 +39,8 @@ const QRCodeDetail = () => {
   const [qrCode, setQrCode] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareHistory, setShareHistory] = useState([]);
 
   useEffect(() => {
     const fetchQRCode = async () => {
@@ -54,6 +62,22 @@ const QRCodeDetail = () => {
     }
   }, [id]);
 
+  const loadShareHistory = useCallback(() => {
+    if (qrCode?.code) {
+      const savedHistory = localStorage.getItem(`share_history_${qrCode.code}`);
+      if (savedHistory) {
+        setShareHistory(JSON.parse(savedHistory));
+      }
+    }
+  }, [qrCode?.code]);
+
+  // Carica la cronologia quando qrCode è disponibile
+  useEffect(() => {
+    if (qrCode?.code) {
+      loadShareHistory();
+    }
+  }, [qrCode?.code, loadShareHistory]);
+
   const handleBack = () => {
     navigate(-1);
   };
@@ -65,85 +89,16 @@ const QRCodeDetail = () => {
   };
 
   const handleShareLink = () => {
-    const publicUrl = `${window.location.origin}/qrcode/${qrCode.code}`;
-    
-    // Prova prima a copiare negli appunti, che funziona su più browser
-    copyToClipboard(publicUrl);
-    
-    // Se il browser supporta l'API Web Share, offri anche questa opzione
-    if (navigator.share) {
-      try {
-        // Mostra un messaggio che indica che il link è stato copiato e può anche essere condiviso
-        setSnackbarMessage('Link copiato negli appunti! Puoi anche condividerlo tramite le opzioni del tuo dispositivo.');
-        setSnackbarOpen(true);
-        
-        // Apri il menu di condivisione del sistema operativo
-        setTimeout(() => {
-          navigator.share({
-            title: `QR Code: ${qrCode.code}`,
-            text: `Dettagli del QR Code per la promozione: ${qrCode.promotion.name}`,
-            url: publicUrl,
-          }).catch((error) => {
-            console.log('Errore durante la condivisione', error);
-            // Il link è già stato copiato, quindi non mostriamo un errore all'utente
-          });
-        }, 300); // Piccolo ritardo per assicurarsi che lo Snackbar appaia prima
-      } catch (error) {
-        console.error('Errore durante la condivisione:', error);
-        // Il link è già stato copiato, quindi non mostriamo un errore all'utente
-      }
-    }
-  };
-
-  const copyToClipboard = (text) => {
-    // Prova prima con l'API Clipboard moderna
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text)
-        .then(() => {
-          setSnackbarMessage('Link copiato negli appunti!');
-          setSnackbarOpen(true);
-        })
-        .catch((err) => {
-          console.error('Errore durante la copia negli appunti con API Clipboard: ', err);
-          // Fallback al metodo alternativo
-          copyToClipboardFallback(text);
-        });
-    } else {
-      // Fallback per browser che non supportano l'API Clipboard
-      copyToClipboardFallback(text);
-    }
+    setShareDialogOpen(true);
   };
   
-  const copyToClipboardFallback = (text) => {
-    try {
-      // Crea un elemento textarea temporaneo
-      const textArea = document.createElement('textarea');
-      textArea.value = text;
-      
-      // Rendi l'elemento invisibile ma presente nel DOM
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      
-      // Seleziona e copia il testo
-      textArea.select();
-      const successful = document.execCommand('copy');
-      
-      // Rimuovi l'elemento temporaneo
-      document.body.removeChild(textArea);
-      
-      if (successful) {
-        setSnackbarMessage('Link copiato negli appunti!');
-      } else {
-        setSnackbarMessage('Impossibile copiare il link. Prova a copiarlo manualmente: ' + text);
-      }
-      setSnackbarOpen(true);
-    } catch (err) {
-      console.error('Errore durante la copia negli appunti con fallback: ', err);
-      setSnackbarMessage('Impossibile copiare il link. Prova a copiarlo manualmente: ' + text);
-      setSnackbarOpen(true);
-    }
+  const handleShareDialogClose = () => {
+    setShareDialogOpen(false);
+    // Ricarica la cronologia quando il dialog si chiude
+    loadShareHistory();
   };
+
+
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
@@ -322,6 +277,8 @@ const QRCodeDetail = () => {
                     {qrCode.promotion.description}
                   </Typography>
                 )}
+                
+
 
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                   <Grid item xs={12} sm={6}>
@@ -339,7 +296,7 @@ const QRCodeDetail = () => {
                       ) : (
                         <Chip
                           icon={<CancelIcon />}
-                          label="Non attiva"
+                          label="Da utilizzare"
                           color="error"
                           size="small"
                         />
@@ -376,6 +333,58 @@ const QRCodeDetail = () => {
               </CardContent>
             </Card>
 
+            {/* Cronologia condivisioni */}
+            {shareHistory.length > 0 && (
+              <Paper sx={{ p: 3, mt: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                  <History sx={{ mr: 1, color: 'primary.main' }} />
+                  <Typography variant="h6">
+                    Cronologia Condivisioni
+                  </Typography>
+                </Box>
+                <List>
+                  {shareHistory.map((share, index) => (
+                    <React.Fragment key={share.id}>
+                      <ListItem>
+                        <ListItemIcon>
+                          <Chip 
+                            label={share.platform} 
+                            size="small" 
+                            color="primary" 
+                            variant="outlined"
+                          />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={share.message}
+                          secondary={
+                            <>
+                              {share.recipient && (
+                                <Typography variant="caption" display="block" color="primary">
+                                  Destinatario: {share.recipient}
+                                </Typography>
+                              )}
+                              <Typography variant="caption" display="block">
+                                {share.timestamp}
+                              </Typography>
+                            </>
+                          }
+                          primaryTypographyProps={{ 
+                            variant: 'body2',
+                            sx: { 
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }
+                          }}
+                        />
+                      </ListItem>
+                      {index < shareHistory.length - 1 && <Divider />}
+                    </React.Fragment>
+                  ))}
+                </List>
+              </Paper>
+            )}
+
             <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
               <Button
                 variant="outlined"
@@ -390,12 +399,20 @@ const QRCodeDetail = () => {
                 startIcon={<ShareIcon />}
                 onClick={handleShareLink}
               >
-                Condividi Link Pubblico
+                Condividi QR Code
               </Button>
             </Box>
           </Paper>
         </Grid>
+
       </Grid>
+     <ShareDialog
+          open={shareDialogOpen}
+          onClose={handleShareDialogClose}
+          qrCode={qrCode}
+          title="Condividi QR Code"
+        />
+      
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}

@@ -166,7 +166,7 @@ const PromotionsList = () => {
                     <TableCell>{promotion.qrCodesCount}</TableCell>
                     <TableCell>
                       <Chip
-                        label={promotion.isActive ? 'Attiva' : 'Inattiva'}
+                        label={promotion.isActive ? 'Attiva' : 'Da utilizzare'}
                         color={promotion.isActive ? 'success' : 'error'}
                         size="small"
                       />

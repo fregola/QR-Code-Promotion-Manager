@@ -20,6 +20,10 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import ShareIcon from '@mui/icons-material/Share';
+
+// Components
+import ShareDialog from '../components/ShareDialog';
 
 const PublicQRCodeDetail = () => {
   const { code } = useParams();
@@ -27,6 +31,7 @@ const PublicQRCodeDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [qrCodeData, setQrCodeData] = useState(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchQRCode = async () => {
@@ -165,13 +170,29 @@ const PublicQRCodeDetail = () => {
                 </Typography>
               </Box>
             )}
+            
+            {/* Pulsante Condividi */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+              <Button
+                variant="outlined"
+                color="primary"
+                startIcon={<ShareIcon />}
+                onClick={() => setShareDialogOpen(true)}
+                sx={{ px: 4, py: 1.5 }}
+              >
+                Condividi questa promozione
+              </Button>
+            </Box>
           </CardContent>
         </Card>
-        
-
-
-
       </Paper>
+      
+      <ShareDialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        qrCode={qrCodeData}
+        title="Condividi questa promozione"
+      />
     </Box>
   );
 };

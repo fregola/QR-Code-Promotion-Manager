@@ -32,10 +32,12 @@ import {
   Delete as DeleteIcon,
   Download as DownloadIcon,
   CloudDownload as CloudDownloadIcon,
+  Share as ShareIcon,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import axios from 'axios';
 import JSZip from 'jszip';
+import ShareDialog from '../components/ShareDialog';
 
 const PromotionDetail = () => {
   const { id } = useParams();
@@ -56,6 +58,7 @@ const PromotionDetail = () => {
   const [formErrors, setFormErrors] = useState({});
   const [selectedQrCode, setSelectedQrCode] = useState(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchPromotionData = async () => {
@@ -403,7 +406,7 @@ const PromotionDetail = () => {
                 Stato
               </Typography>
               <Chip
-                label={promotion.isActive ? 'Attiva' : 'Inattiva'}
+                label={promotion.isActive ? 'Attiva' : 'Da utilizzare'}
                 color={promotion.isActive ? 'success' : 'error'}
               />
             </Grid>
@@ -467,38 +470,67 @@ const PromotionDetail = () => {
         </Typography>
 
         {qrCodes.length > 0 ? (
-          <div className="qr-code-container">
+          <Grid container spacing={{ xs: 2, sm: 3 }}>
             {qrCodes.map((qrCode) => (
-              <Card key={qrCode._id} sx={{ maxWidth: 200, m: 1 }}>
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={qrCode.qrImagePath}
-                  alt={`QR Code ${qrCode.code}`}
-                  onClick={() => handleQrCodeClick(qrCode)}
-                  sx={{ cursor: 'pointer' }}
-                />
-                <CardContent>
-                  <Typography variant="body2" color="textSecondary" gutterBottom>
-                    Codice: {qrCode.code}
-                  </Typography>
-                  <Typography variant="body2">
-                    Utilizzi: {qrCode.usageCount}/{qrCode.maxUsageCount}
-                  </Typography>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => downloadQrCode(qrCode)}
-                    sx={{ mt: 1 }}
-                    fullWidth
-                  >
-                    Scarica
-                  </Button>
-                </CardContent>
-              </Card>
+              <Grid item xs={6} sm={6} md={4} lg={3} key={qrCode._id}>
+                <Card sx={{ 
+                  height: '100%', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  minHeight: { xs: '280px', sm: '320px' }
+                }}>
+                  <CardMedia
+                    component="img"
+                    height={{ xs: '120', sm: '160', md: '180' }}
+                    image={qrCode.qrImagePath}
+                    alt={`QR Code ${qrCode.code}`}
+                    onClick={() => handleQrCodeClick(qrCode)}
+                    sx={{ cursor: 'pointer', objectFit: 'contain', p: { xs: 0.5, sm: 1 } }}
+                  />
+                  <CardContent sx={{ 
+                    flexGrow: 1, 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    p: { xs: 1, sm: 2 },
+                    '&:last-child': { pb: { xs: 1, sm: 2 } }
+                  }}>
+                    <Typography variant={{ xs: 'caption', sm: 'body2' }} color="textSecondary" gutterBottom>
+                      Codice: {qrCode.code}
+                    </Typography>
+                    <Typography variant={{ xs: 'caption', sm: 'body2' }} sx={{ mb: { xs: 1, sm: 2 } }}>
+                      Utilizzi: {qrCode.usageCount}/{qrCode.maxUsageCount}
+                    </Typography>
+                    <Box sx={{ mt: 'auto', display: 'flex', flexDirection: 'column', gap: { xs: 0.5, sm: 1 } }}>
+                      <Button
+                        variant="outlined"
+                        size={{ xs: 'small', sm: 'small' }}
+                        startIcon={<DownloadIcon />}
+                        onClick={() => downloadQrCode(qrCode)}
+                        fullWidth
+                        sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
+                      >
+                        Scarica
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size={{ xs: 'small', sm: 'small' }}
+                        startIcon={<ShareIcon />}
+                        onClick={() => {
+                          setSelectedQrCode(qrCode);
+                          setShareDialogOpen(true);
+                        }}
+                        fullWidth
+                        color="secondary"
+                        sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
+                      >
+                        Condividi
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
             ))}
-          </div>
+          </Grid>
         ) : (
           <Typography variant="body1" color="textSecondary">
             Nessun QR code disponibile per questa promozione.
@@ -582,6 +614,16 @@ const PromotionDetail = () => {
         <DialogActions>
           <Button onClick={() => setQrDialogOpen(false)}>Chiudi</Button>
           <Button
+            variant="outlined"
+            startIcon={<ShareIcon />}
+            onClick={() => {
+              setQrDialogOpen(false);
+              setShareDialogOpen(true);
+            }}
+          >
+            Condividi
+          </Button>
+          <Button
             variant="contained"
             startIcon={<DownloadIcon />}
             onClick={() => downloadQrCode(selectedQrCode)}
@@ -590,6 +632,13 @@ const PromotionDetail = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      
+      <ShareDialog
+        open={shareDialogOpen}
+        onClose={() => setShareDialogOpen(false)}
+        qrCode={selectedQrCode}
+        title="Condividi QR Code"
+      />
     </>
   );
 };

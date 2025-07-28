@@ -192,7 +192,10 @@ const QRCodeVerify = () => {
                       Telefono
                     </Typography>
                     <Typography variant="body1" gutterBottom>
-                      {qrCodeData.business.phoneNumber}
+                      <a href={`tel:${qrCodeData.business.phoneNumber}`} 
+                         style={{ color: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
+                        {qrCodeData.business.phoneNumber}
+                      </a>
                     </Typography>
                   </Grid>
                 )}
