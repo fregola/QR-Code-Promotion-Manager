@@ -84,204 +84,93 @@ const PublicQRCodeDetail = () => {
       bgcolor: '#f5f5f5'
     }}>
       <Paper sx={{ p: 3, mb: 3, width: '100%', maxWidth: 600 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Dettagli QR Code
-        </Typography>
-
         <Card sx={{ mb: 3 }}>
           <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Informazioni QR Code
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Codice
-                </Typography>
-                <Typography variant="body1" gutterBottom>
-                  {qrCodeData.code}
-                </Typography>
-              </Grid>
-
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Stato
-                </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  {isActive ? (
-                    <Chip
-                      icon={<CheckCircleIcon />}
-                      label="Disponibile"
-                      color="success"
-                      size="small"
-                    />
-                  ) : (
-                    <Chip
-                      icon={<CancelIcon />}
-                      label={isUsedUp ? "Esaurito" : isExpired ? "Scaduto" : "Non attivo"}
-                      color="error"
-                      size="small"
-                    />
-                  )}
-                </Box>
-              </Grid>
-
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Utilizzi
-                </Typography>
-                <Typography variant="body1" gutterBottom>
-                  {qrCodeData.usageCount}/{qrCodeData.maxUsageCount}
-                  {qrCodeData.maxUsageCount > 1 && qrCodeData.usageCount < qrCodeData.maxUsageCount && (
-                    <Box component="span" sx={{ ml: 1, color: 'success.main' }}>
-                      (Ancora {qrCodeData.maxUsageCount - qrCodeData.usageCount} disponibili)
-                    </Box>
-                  )}
-                </Typography>
-              </Grid>
-              
-              {qrCodeData.lastUsedAt && (
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="subtitle2" color="textSecondary">
-                    Ultimo utilizzo
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <AccessTimeIcon fontSize="small" sx={{ mr: 1 }} />
-                    <Typography variant="body1" gutterBottom>
-                      {new Date(qrCodeData.lastUsedAt).toLocaleString()}
-                    </Typography>
-                  </Box>
-                </Grid>
-              )}
-            </Grid>
-          </CardContent>
-        </Card>
-
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom>
-              Promozione
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Typography variant="h5" gutterBottom>
+            {qrCodeData.business && qrCodeData.business.businessLogo && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                <Box 
+                  component="img"
+                  src={qrCodeData.business.businessLogo}
+                  alt="Logo aziendale"
+                  sx={{ 
+                    maxWidth: '200px', 
+                    maxHeight: '150px',
+                    objectFit: 'contain'
+                  }}
+                />
+              </Box>
+            )}
+            
+            <Typography variant="h4" gutterBottom align="center">
               {qrCodeData.promotion.name}
             </Typography>
 
             {qrCodeData.promotion.description && (
-              <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
+              <Typography variant="h6" color="textSecondary" sx={{ mb: 3, textAlign: 'center' }}>
                 {qrCodeData.promotion.description}
               </Typography>
             )}
 
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <Typography variant="subtitle2" color="textSecondary">
-                  Scadenza
+            {qrCodeData.qrImagePath && (
+               <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                 <Box
+                   component="img"
+                   src={qrCodeData.qrImagePath}
+                   alt={`QR Code ${qrCodeData.code}`}
+                   sx={{
+                     maxWidth: '200px',
+                     maxHeight: '200px',
+                     objectFit: 'contain',
+                     border: '1px solid #e0e0e0',
+                     borderRadius: 1,
+                     p: 1,
+                     bgcolor: 'white'
+                   }}
+                 />
+               </Box>
+             )}
+
+             <Box sx={{ textAlign: 'center', mb: 3 }}>
+               {qrCodeData.usageCount >= qrCodeData.maxUsageCount ? (
+                 <Typography variant="body1" sx={{ mb: 1, color: 'error.main' }}>
+                   <strong>Promozione già utilizzata il {new Date(qrCodeData.lastUsedAt).toLocaleDateString()}</strong>
+                 </Typography>
+               ) : (
+                 <Box sx={{ color: 'success.main', mb: 1 }}>
+                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                     🎉 La tua promozione è attiva!
+                   </Typography>
+                   <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                     Puoi utilizzare questa promozione {qrCodeData.maxUsageCount - qrCodeData.usageCount} {qrCodeData.maxUsageCount - qrCodeData.usageCount === 1 ? 'volta' : 'volte'}
+                   </Typography>
+                   {hasValidExpiryDate && (
+                     <Typography variant="body1" sx={{ color: 'orange.main', mt: 1, fontWeight: 'bold' }}>
+                       La tua promozione scade il {new Date(qrCodeData.promotion.expiryDate).toLocaleDateString('it-IT')}
+                     </Typography>
+                   )}
+                 </Box>
+               )}
+               
+               {qrCodeData.usageCount > 0 && qrCodeData.usageCount < qrCodeData.maxUsageCount && qrCodeData.lastUsedAt && (
+                 <Typography variant="body2" color="textSecondary">
+                   Ultimo utilizzo: {new Date(qrCodeData.lastUsedAt).toLocaleDateString()}
+                 </Typography>
+               )}
+             </Box>
+
+            {qrCodeData.business && qrCodeData.business.phoneNumber && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+                <Typography variant="h6" color="primary">
+                  📞 {qrCodeData.business.phoneNumber}
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <CalendarTodayIcon fontSize="small" sx={{ mr: 1 }} />
-                  <Typography variant="body1">
-                    {hasValidExpiryDate 
-                      ? new Date(qrCodeData.promotion.expiryDate).toLocaleDateString()
-                      : 'Nessuna scadenza'}
-                  </Typography>
-                </Box>
-              </Grid>
-            </Grid>
+              </Box>
+            )}
           </CardContent>
         </Card>
         
-        {qrCodeData.business && (
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Informazioni Azienda
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              {qrCodeData.business.businessLogo && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                  <Box 
-                    component="img"
-                    src={qrCodeData.business.businessLogo}
-                    alt="Logo aziendale"
-                    sx={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '150px',
-                      objectFit: 'contain'
-                    }}
-                  />
-                </Box>
-              )}
-              
-              <Typography variant="h5" gutterBottom>
-                {qrCodeData.business.businessName || qrCodeData.business.name}
-              </Typography>
-              
-              {qrCodeData.business.businessType && (
-                <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
-                  {qrCodeData.business.businessType}
-                </Typography>
-              )}
-              
-              <Grid container spacing={2}>
-                {(qrCodeData.business.address || qrCodeData.business.city || qrCodeData.business.postalCode) && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Indirizzo
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      {[qrCodeData.business.address, qrCodeData.business.city, qrCodeData.business.postalCode]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </Typography>
-                  </Grid>
-                )}
-                
-                {qrCodeData.business.phoneNumber && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Telefono
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      {qrCodeData.business.phoneNumber}
-                    </Typography>
-                  </Grid>
-                )}
-                
-                {qrCodeData.business.website && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Sito Web
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <a href={qrCodeData.business.website.startsWith('http') ? qrCodeData.business.website : `https://${qrCodeData.business.website}`} 
-                         target="_blank" 
-                         rel="noopener noreferrer"
-                         style={{ color: 'inherit', textDecoration: 'underline' }}>
-                        {qrCodeData.business.website}
-                      </a>
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </CardContent>
-          </Card>
-        )}
 
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={() => navigate(`/verify/${qrCodeData.code}`)}
-            disabled={!isActive}
-          >
-            Verifica QR Code
-          </Button>
-        </Box>
+
+
       </Paper>
     </Box>
   );
