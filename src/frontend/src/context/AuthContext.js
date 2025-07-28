@@ -1,8 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
 // Configurazione axios per il backend
-// In sviluppo usa il server locale, in produzione usa il dominio
-axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? 'https://qrcodepromotion.it' : '';
+// In sviluppo usa il server locale, in produzione usa il dominio corrente
+axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '' : '';
 
 const AuthContext = createContext();
 

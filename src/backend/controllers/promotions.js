@@ -213,7 +213,7 @@ exports.deletePromotion = async (req, res) => {
     }
 
     // This will trigger the cascade delete middleware
-    await promotion.remove();
+    await promotion.deleteOne();
 
     res.status(200).json({
       success: true,

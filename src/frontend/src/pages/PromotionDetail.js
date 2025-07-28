@@ -494,16 +494,16 @@ const PromotionDetail = () => {
                     p: { xs: 1, sm: 2 },
                     '&:last-child': { pb: { xs: 1, sm: 2 } }
                   }}>
-                    <Typography variant={{ xs: 'caption', sm: 'body2' }} color="textSecondary" gutterBottom>
+                    <Typography variant="body2" color="textSecondary" gutterBottom>
                       Codice: {qrCode.code}
                     </Typography>
-                    <Typography variant={{ xs: 'caption', sm: 'body2' }} sx={{ mb: { xs: 1, sm: 2 } }}>
+                    <Typography variant="body2" sx={{ mb: { xs: 1, sm: 2 } }}>
                       Utilizzi: {qrCode.usageCount}/{qrCode.maxUsageCount}
                     </Typography>
                     <Box sx={{ mt: 'auto', display: 'flex', flexDirection: 'column', gap: { xs: 0.5, sm: 1 } }}>
                       <Button
                         variant="outlined"
-                        size={{ xs: 'small', sm: 'small' }}
+                        size="small"
                         startIcon={<DownloadIcon />}
                         onClick={() => downloadQrCode(qrCode)}
                         fullWidth
@@ -513,7 +513,7 @@ const PromotionDetail = () => {
                       </Button>
                       <Button
                         variant="outlined"
-                        size={{ xs: 'small', sm: 'small' }}
+                        size="small"
                         startIcon={<ShareIcon />}
                         onClick={() => {
                           setSelectedQrCode(qrCode);

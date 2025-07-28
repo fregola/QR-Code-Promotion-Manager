@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const QRCode = require('./QRCode');
 
 const PromotionSchema = new mongoose.Schema({
   name: {
@@ -53,8 +54,8 @@ PromotionSchema.virtual('qrCodes', {
 });
 
 // Cascade delete QR codes when a promotion is deleted
-PromotionSchema.pre('remove', async function(next) {
-  await this.model('QRCode').deleteMany({ promotion: this._id });
+PromotionSchema.pre(['remove', 'deleteOne', 'findOneAndDelete'], async function(next) {
+  await QRCode.deleteMany({ promotion: this._id });
   next();
 });
 
