@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useCallback } fr
 import axios from 'axios';
 // Configurazione axios per il backend
 // In sviluppo usa il server locale, in produzione usa il dominio corrente
-axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '' : '';
+axios.defaults.baseURL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 const AuthContext = createContext();
 
