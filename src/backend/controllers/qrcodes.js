@@ -13,6 +13,7 @@ exports.getQRCodes = async (req, res) => {
     const endIndex = page * limit;
 
     let query;
+    let queryConditions = {};
     
     // If promotion ID is provided, filter by promotion
     if (req.query.promotion) {
@@ -33,17 +34,26 @@ exports.getQRCodes = async (req, res) => {
         });
       }
       
-      query = QRCode.find({ promotion: req.query.promotion });
+      queryConditions.promotion = req.query.promotion;
     } else {
       // Get all QR codes for promotions created by the user
       const promotions = await Promotion.find({ createdBy: req.user.id });
       const promotionIds = promotions.map(promo => promo._id);
       
-      query = QRCode.find({ promotion: { $in: promotionIds } });
+      queryConditions.promotion = { $in: promotionIds };
     }
     
+    // If search term is provided, filter by code
+    if (req.query.search) {
+      // Create a case-insensitive regex for the search term
+      const searchRegex = new RegExp(req.query.search, 'i');
+      queryConditions.code = searchRegex;
+    }
+    
+    query = QRCode.find(queryConditions);
+    
     // Count before pagination
-    const total = await QRCode.countDocuments(query);
+    const total = await QRCode.countDocuments(queryConditions);
     
     // Add pagination to query
     query = query.populate('promotion')
