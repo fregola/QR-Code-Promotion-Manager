@@ -17,7 +17,8 @@ import {
   List,
   ListItem,
   ListItemIcon,
-  ListItemText
+  ListItemText,
+  Alert
 } from '@mui/material';
 import {
   WhatsApp as WhatsAppIcon,
@@ -29,7 +30,8 @@ import {
   Email as EmailIcon,
   Facebook as FacebookIcon,
   Twitter as TwitterIcon,
-  LinkedIn as LinkedInIcon
+  LinkedIn as LinkedInIcon,
+  History as HistoryIcon
 } from '@mui/icons-material';
 
 
@@ -147,6 +149,7 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
   if (!qrCode) return null;
   
   const publicUrl = `${window.location.origin}/qrcode/${qrCode.code}`;
+  // Questa sezione è stata rimossa perché è una duplicazione del codice che appare più avanti nel file
   const defaultMessage = `Guarda questa promozione: ${qrCode.promotion?.name || 'QR Code'}`;
   const shareText = customMessage || defaultMessage;
   const fullMessage = `${shareText}\n\n${publicUrl}`;
