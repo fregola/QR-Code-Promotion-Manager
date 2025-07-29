@@ -32,6 +32,49 @@ import {
   LinkedIn as LinkedInIcon
 } from '@mui/icons-material';
 
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+
+// Funzione per salvare condivisione nel database
+const saveShareToDatabase = async (qrCodeId, platform, message, recipient = null) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/qrcodes/${qrCodeId}/share`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ platform })
+    });
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Errore nel salvare la condivisione:', error);
+    return null;
+  }
+};
+
+// Funzione per caricare cronologia dal database
+const loadShareHistory = async (qrCodeId) => {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${API_BASE_URL}/api/qrcodes/${qrCodeId}/shares`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    const data = await response.json();
+    return data.success ? data.data.shares : [];
+  } catch (error) {
+    console.error('Errore nel caricare la cronologia:', error);
+    return [];
+  }
+};
+
 const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -40,14 +83,17 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
   const [shareHistory, setShareHistory] = useState([]);
   
   // Carica la cronologia delle condivisioni dal localStorage
+  // Carica la cronologia delle condivisioni dal database
   useEffect(() => {
-    if (qrCode?.code) {
-      const savedHistory = localStorage.getItem(`share_history_${qrCode.code}`);
-      if (savedHistory) {
-        setShareHistory(JSON.parse(savedHistory));
+    const loadHistory = async () => {
+      if (qrCode?._id) {
+        const history = await loadShareHistory(qrCode._id);
+        setShareHistory(history);
       }
-    }
-  }, [qrCode?.code]);
+    };
+    
+    loadHistory();
+  }, [qrCode?._id]);
   
   if (!qrCode) return null;
   
@@ -57,22 +103,29 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
   const fullMessage = `${shareText}\n\n${publicUrl}`;
 
   // Funzione per aggiungere una condivisione alla cronologia
-  const addToShareHistory = (platform, message, recipient = null) => {
-    const newShare = {
-      id: Date.now(),
-      platform,
-      message,
-      recipient: recipient || null,
-      timestamp: new Date().toLocaleString('it-IT'),
-      url: publicUrl
-    };
+  const addToShareHistory = async (platform, message, recipient = null) => {
+    // Salva nel database
+    const result = await saveShareToDatabase(qrCode._id, platform, message, recipient);
     
-    const updatedHistory = [newShare, ...shareHistory].slice(0, 10); // Mantieni solo le ultime 10
-    setShareHistory(updatedHistory);
-    
-    // Salva nel localStorage
-    if (qrCode?.code) {
-      localStorage.setItem(`share_history_${qrCode.code}`, JSON.stringify(updatedHistory));
+    if (result && result.success) {
+      // Aggiorna lo stato locale
+      const newShare = {
+        platform,
+        sharedAt: new Date().toISOString(),
+        sharedBy: { name: 'Tu' }, // L'API restituirà i dati completi
+        message,
+        recipient
+      };
+      
+      setShareHistory(prev => [newShare, ...prev]);
+      
+      // Mostra messaggio di successo
+      setSnackbarMessage(`Condiviso su ${platform}! Salvato nella cronologia.`);
+      setSnackbarOpen(true);
+    } else {
+      // Se il salvataggio fallisce, mostra comunque il messaggio
+      setSnackbarMessage(`Condiviso su ${platform}! (Non salvato nella cronologia)`);
+      setSnackbarOpen(true);
     }
     
     // Reset del campo nome destinatario dopo la condivisione
@@ -383,18 +436,18 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
               </Typography>
               <Paper sx={{ maxHeight: 200, overflow: 'auto' }}>
                 <List dense>
-                  {shareHistory.map((share) => (
-                    <ListItem key={share.id}>
+                  {shareHistory.map((share, index) => (
+                    <ListItem key={share._id || index}>
                       <ListItemIcon>
-                        <Chip 
-                          label={share.platform} 
-                          size="small" 
-                          color="primary" 
+                        <Chip
+                          label={share.platform}
+                          size="small"
+                          color="primary"
                           variant="outlined"
                         />
                       </ListItemIcon>
                       <ListItemText
-                        primary={share.message}
+                        primary={share.message || `Condiviso su ${share.platform}`}
                         secondary={
                           <>
                             {share.recipient && (
@@ -403,13 +456,13 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
                               </Typography>
                             )}
                             <Typography variant="caption" display="block">
-                              {share.timestamp}
+                              {new Date(share.sharedAt).toLocaleString('it-IT')}
                             </Typography>
                           </>
                         }
-                        primaryTypographyProps={{ 
+                        primaryTypographyProps={{
                           variant: 'body2',
-                          sx: { 
+                          sx: {
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap'
@@ -422,7 +475,7 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
               </Paper>
             </>
           )}
-        </DialogContent>
+          </DialogContent>
         
         <DialogActions sx={{ px: 3, pb: 3 }}>
           <Button onClick={onClose} variant="outlined">
