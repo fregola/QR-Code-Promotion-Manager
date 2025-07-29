@@ -79,6 +79,7 @@ const PromotionDetail = () => {
         
         // Fetch QR codes for this promotion
         const qrCodesRes = await axios.get(`/api/qrcodes?promotion=${id}`);
+        console.log('QR Codes response:', qrCodesRes.data.data);
         setQrCodes(qrCodesRes.data.data);
         
         setLoading(false);
