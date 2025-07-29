@@ -555,6 +555,7 @@ const PromotionDetail = () => {
                         size="small"
                         startIcon={<ShareIcon />}
                         onClick={() => {
+                          console.log('Opening ShareDialog with qrCode:', qrCode);
                           setSelectedQrCode(qrCode);
                           setShareDialogOpen(true);
                         }}
@@ -694,6 +695,7 @@ const PromotionDetail = () => {
             variant="outlined"
             startIcon={<ShareIcon />}
             onClick={() => {
+                          console.log('Opening ShareDialog with qrCode:', qrCode);
               setQrDialogOpen(false);
               setShareDialogOpen(true);
             }}
