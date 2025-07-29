@@ -37,7 +37,27 @@ const QRCodeSchema = new mongoose.Schema({
   },
   qrImagePath: {
     type: String
+  },
+  shares: [{
+    platform: {
+      type: String,
+      enum: ['whatsapp', 'sms', 'telegram', 'facebook', 'twitter', 'email', 'link'],
+      required: true
+    },
+    sharedAt: {
+      type: Date,
+      default: Date.now
+    },
+    sharedBy: {
+      type: mongoose.Schema.ObjectId,
+      ref: 'User'
+    }
+  }],
+  totalShares: {
+    type: Number,
+    default: 0
   }
+
 });
 
 // Middleware per impostare maxUsageCount dal valore della promozione associata

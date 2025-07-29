@@ -275,3 +275,105 @@ exports.getQRCodeByCode = async (req, res) => {
     });
   }
 };
+
+// @desc    Record a share event
+// @route   POST /api/qrcodes/:id/share
+// @access  Private
+exports.shareQRCode = async (req, res) => {
+  try {
+    const { platform } = req.body;
+    
+    if (!platform) {
+      return res.status(400).json({
+        success: false,
+        error: 'Platform is required'
+      });
+    }
+
+    const qrCode = await QRCode.findById(req.params.id).populate('promotion');
+
+    if (!qrCode) {
+      return res.status(404).json({
+        success: false,
+        error: 'QR code not found'
+      });
+    }
+
+    // Verifica che l'utente possa condividere questo QR code
+    const promotion = await Promotion.findById(qrCode.promotion);
+    
+    if (promotion.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(401).json({
+        success: false,
+        error: 'Not authorized to share this QR code'
+      });
+    }
+
+    // Aggiungi la condivisione all'array
+    qrCode.shares.push({
+      platform: platform,
+      sharedAt: new Date(),
+      sharedBy: req.user.id
+    });
+    
+    qrCode.totalShares = qrCode.shares.length;
+    
+    await qrCode.save();
+
+    res.status(200).json({
+      success: true,
+      message: `QR code shared via ${platform}`,
+      data: {
+        totalShares: qrCode.totalShares,
+        lastShare: qrCode.shares[qrCode.shares.length - 1]
+      }
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+};
+
+// @desc    Get share history for a QR code
+// @route   GET /api/qrcodes/:id/shares
+// @access  Private
+exports.getQRCodeShares = async (req, res) => {
+  try {
+    const qrCode = await QRCode.findById(req.params.id)
+      .populate('promotion')
+      .populate('shares.sharedBy', 'name email');
+
+    if (!qrCode) {
+      return res.status(404).json({
+        success: false,
+        error: 'QR code not found'
+      });
+    }
+
+    // Verifica autorizzazione
+    const promotion = await Promotion.findById(qrCode.promotion);
+    
+    if (promotion.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(401).json({
+        success: false,
+        error: 'Not authorized to view shares for this QR code'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        qrCodeId: qrCode._id,
+        totalShares: qrCode.totalShares,
+        shares: qrCode.shares.sort((a, b) => new Date(b.sharedAt) - new Date(a.sharedAt))
+      }
+    });
+  } catch (err) {
+    res.status(400).json({
+      success: false,
+      error: err.message
+    });
+  }
+};
