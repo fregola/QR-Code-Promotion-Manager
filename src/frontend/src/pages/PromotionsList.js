@@ -45,7 +45,7 @@ const PromotionsList = () => {
         const res = await axios.get(`/api/promotions?page=${page + 1}&limit=${rowsPerPage}`);
         setPromotions(res.data.data);
         setFilteredPromotions(res.data.data);
-        setTotalCount(res.data.count);
+        setTotalCount(res.data.pagination.total);
         setLoading(false);
       } catch (err) {
         setError(err.response?.data?.error || 'Errore nel caricamento delle promozioni');
@@ -84,7 +84,7 @@ const PromotionsList = () => {
         const res = await axios.get(`/api/promotions?page=${page + 1}&limit=${rowsPerPage}`);
         setPromotions(res.data.data);
         setFilteredPromotions(res.data.data);
-        setTotalCount(res.data.count);
+        setTotalCount(res.data.pagination.total);
       } catch (err) {
         setError(err.response?.data?.error || 'Errore durante l\'eliminazione della promozione');
       }

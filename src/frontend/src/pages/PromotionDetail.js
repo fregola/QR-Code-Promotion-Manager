@@ -38,6 +38,9 @@ import dayjs from 'dayjs';
 import axios from 'axios';
 import JSZip from 'jszip';
 import ShareDialog from '../components/ShareDialog';
+import ShareHistory from '../components/ShareHistory';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 const PromotionDetail = () => {
   const { id } = useParams();
@@ -59,13 +62,17 @@ const PromotionDetail = () => {
   const [selectedQrCode, setSelectedQrCode] = useState(null);
   const [qrDialogOpen, setQrDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [isShared, setIsShared] = useState(false);
 
   useEffect(() => {
     const fetchPromotionData = async () => {
       try {
         // Fetch promotion details
-        const promotionRes = await axios.get(`/api/promotions/${id}`);
+        const token = localStorage.getItem('token');
+        const promotionRes = await axios.get(`${API_BASE_URL}/api/promotions/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         const promotionData = promotionRes.data.data;
         setPromotion(promotionData);
         
@@ -78,8 +85,14 @@ const PromotionDetail = () => {
         });
         
         // Fetch QR codes for this promotion
-        const qrCodesRes = await axios.get(`/api/qrcodes?promotion=${id}`);
+        const qrCodesRes = await axios.get(`${API_BASE_URL}/api/qrcodes?promotion=${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         console.log('QR Codes response:', qrCodesRes.data.data);
+        
+        // Imposta i QR codes
         setQrCodes(qrCodesRes.data.data);
         
         setLoading(false);
@@ -93,21 +106,52 @@ const PromotionDetail = () => {
   }, [id]);
   
   // Aggiorna lo stato di condivisione di tutti i QR code
+  const updateQRCodesShareStatus = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const updatedQRCodes = await Promise.all(
+        qrCodes.map(async (qrCode) => {
+          try {
+            const shareRes = await axios.get(`${API_BASE_URL}/api/qrcodes/${qrCode._id}/shares`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            return {
+              ...qrCode,
+              isShared: shareRes.data.data.totalShares > 0,
+              shares: shareRes.data.data.shares,
+              totalShares: shareRes.data.data.totalShares
+            };
+          } catch (error) {
+            console.error(`Errore nel recupero delle condivisioni per il QR code ${qrCode._id}:`, error);
+            return qrCode;
+          }
+        })
+      );
+      
+      setQrCodes(updatedQRCodes);
+    } catch (error) {
+      console.error('Errore nell\'aggiornamento dello stato di condivisione:', error);
+    }
+  };
+  
+  // Aggiorna lo stato di condivisione quando vengono caricati i QR code
   useEffect(() => {
     if (qrCodes.length > 0) {
-      // Forza il re-render per aggiornare gli indicatori di condivisione
-      setQrCodes([...qrCodes]);
+      updateQRCodesShareStatus();
     }
   }, [qrCodes.length]);
-  
-  // Effetto per aggiornare lo stato isShared quando cambia il QR code selezionato
-  useEffect(() => {
-    if (selectedQrCode) {
-      const shareHistory = localStorage.getItem(`share_history_${selectedQrCode.code}`);
-      console.log('Checking share history for', selectedQrCode.code, ':', shareHistory);
-      setIsShared(!!shareHistory);
-    }
-  }, [selectedQrCode]);
+
+  const handleShareComplete = () => {
+    // Aggiorna lo stato di condivisione dopo una nuova condivisione
+    updateQRCodesShareStatus();
+  };
+
+  const handleShareClick = () => {
+    setShareDialogOpen(true);
+  };
 
   const handleTabChange = (event, newValue) => {
     setTabValue(newValue);
@@ -157,7 +201,13 @@ const PromotionDetail = () => {
           expiryDate: formData.expiryDate ? formData.expiryDate.toISOString() : null,
         };
 
-        const res = await axios.put(`/api/promotions/${id}`, promotionData);
+        const token = localStorage.getItem('token');
+        const res = await axios.put(`${API_BASE_URL}/api/promotions/${id}`, promotionData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         setPromotion(res.data.data);
         setEditMode(false);
         setLoading(false);
@@ -171,7 +221,12 @@ const PromotionDetail = () => {
   const handleDelete = async () => {
     if (window.confirm('Sei sicuro di voler eliminare questa promozione? Questa azione non può essere annullata.')) {
       try {
-        await axios.delete(`/api/promotions/${id}`);
+        const token = localStorage.getItem('token');
+        await axios.delete(`${API_BASE_URL}/api/promotions/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
         navigate('/promotions');
       } catch (err) {
         setError(err.response?.data?.error || 'Errore durante l\'eliminazione della promozione');
@@ -181,12 +236,6 @@ const PromotionDetail = () => {
 
   const handleQrCodeClick = (qrCode) => {
     setSelectedQrCode(qrCode);
-    
-    // Verifica se il QR code è stato condiviso
-    const shareHistory = localStorage.getItem(`share_history_${qrCode.code}`);
-    console.log('Share history:', shareHistory); // Debug log
-    setIsShared(!!shareHistory);
-    
     setQrDialogOpen(true);
   };
 
@@ -526,18 +575,18 @@ const PromotionDetail = () => {
                       <Typography variant="body2">
                         Utilizzi: {qrCode.usageCount}/{qrCode.maxUsageCount}
                       </Typography>
-                      {(() => {
-                        const shareHistory = localStorage.getItem(`share_history_${qrCode.code}`);
-                        return shareHistory ? (
-                          <Chip 
-                            icon={<ShareIcon sx={{ fontSize: '0.7rem' }} />}
-                            label="Condiviso" 
-                            color="success" 
-                            size="small" 
-                            sx={{ height: 20, fontSize: '0.6rem', ml: 0.5 }}
-                          />
-                        ) : null;
-                      })()}
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: { xs: 1, sm: 2 } }}>
+                      {qrCode.isShared && (
+                        <Chip 
+                          size="small" 
+                          icon={<ShareIcon fontSize="small" />} 
+                          label="Condiviso" 
+                          color="primary" 
+                          variant="outlined"
+                          sx={{ fontSize: '0.7rem' }}
+                        />
+                      )}
                     </Box>
                     <Box sx={{ mt: 'auto', display: 'flex', flexDirection: 'column', gap: { xs: 0.5, sm: 1 } }}>
                       <Button
@@ -554,13 +603,12 @@ const PromotionDetail = () => {
                         variant="outlined"
                         size="small"
                         startIcon={<ShareIcon />}
-                        onClick={() => {
-                          console.log('Opening ShareDialog with qrCode:', qrCode);
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedQrCode(qrCode);
                           setShareDialogOpen(true);
                         }}
                         fullWidth
-                        color="secondary"
                         sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}
                       >
                         Condividi
@@ -643,65 +691,43 @@ const PromotionDetail = () => {
               <Typography variant="body2" color="textSecondary">
                 Utilizzi: {selectedQrCode.usageCount}/{selectedQrCode.maxUsageCount}
               </Typography>
-              <Typography variant="body2" sx={{ color: isShared ? 'success.main' : 'text.secondary', fontWeight: isShared ? 'bold' : 'normal', mt: 1, mb: 1 }}>
-                {isShared ? "✓ Il QR code è stato condiviso" : "Il QR code non è stato ancora condiviso"}
-              </Typography>
-              {isShared && (() => {
-                const shareHistory = JSON.parse(localStorage.getItem(`share_history_${selectedQrCode.code}`) || '[]');
-                if (shareHistory.length > 0) {
-                  return (
-                    <Box sx={{ mt: 1, mb: 1, p: 1, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid #e0e0e0' }}>
-                      <Typography variant="body2" fontWeight="medium" color="primary" gutterBottom>
-                        Testi condivisi:
-                      </Typography>
-                      <Box sx={{ maxHeight: '150px', overflow: 'auto', pr: 1 }}>
-                        {shareHistory.map((share, index) => (
-                          <Box key={share.id || index} sx={{ mb: 1, pb: 1, borderBottom: index < shareHistory.length - 1 ? '1px dashed #e0e0e0' : 'none' }}>
-                            <Typography variant="body2" sx={{ fontStyle: 'italic', wordBreak: 'break-word' }}>
-                              {share.message || `Guarda questa promozione: ${selectedQrCode.promotion?.name || 'QR Code'}`}
-                            </Typography>
-                            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.5 }}>
-                              <Typography variant="caption" color="textSecondary">
-                                {share.platform}
-                              </Typography>
-                              <Typography variant="caption" color="textSecondary">
-                                {share.timestamp}
-                              </Typography>
-                            </Box>
-                            {share.recipient && (
-                              <Typography variant="caption" color="primary">
-                                Destinatario: {share.recipient}
-                              </Typography>
-                            )}
-                          </Box>
-                        ))}
-                      </Box>
-                    </Box>
-                  );
-                }
-                return null;
-              })()}
+
               {selectedQrCode.lastUsedAt && (
                 <Typography variant="body2" color="textSecondary">
                   Ultimo utilizzo: {new Date(selectedQrCode.lastUsedAt).toLocaleString()}
                 </Typography>
+              )}
+              
+              {selectedQrCode.isShared && (
+                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                  <Chip 
+                    icon={<ShareIcon />} 
+                    label="Condiviso" 
+                    color="primary" 
+                    variant="outlined"
+                  />
+                </Box>
+              )}
+              
+              {selectedQrCode.isShared && selectedQrCode.shares && selectedQrCode.shares.length > 0 && (
+                <Box sx={{ mt: 2 }}>
+                  <ShareHistory qrCode={selectedQrCode} />
+                </Box>
               )}
             </Box>
           )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setQrDialogOpen(false)}>Chiudi</Button>
+          
           <Button
             variant="outlined"
             startIcon={<ShareIcon />}
-            onClick={() => {
-                          console.log('Opening ShareDialog with qrCode:', qrCode);
-              setQrDialogOpen(false);
-              setShareDialogOpen(true);
-            }}
+            onClick={() => setShareDialogOpen(true)}
           >
             Condividi
           </Button>
+
           <Button
             variant="contained"
             startIcon={<DownloadIcon />}
@@ -712,20 +738,15 @@ const PromotionDetail = () => {
         </DialogActions>
       </Dialog>
       
-      <ShareDialog
-        open={shareDialogOpen}
-        onClose={() => {
-          setShareDialogOpen(false);
-          // Verifica nuovamente se il QR code è stato condiviso dopo la chiusura del dialog di condivisione
-          if (selectedQrCode) {
-            const shareHistory = localStorage.getItem(`share_history_${selectedQrCode.code}`);
-            console.log('Share history after dialog close:', shareHistory); // Debug log
-            setIsShared(!!shareHistory);
-          }
-        }}
-        qrCode={selectedQrCode}
-        title="Condividi QR Code"
-      />
+      {/* Share Dialog */}
+      {selectedQrCode && (
+        <ShareDialog 
+          open={shareDialogOpen} 
+          onClose={() => setShareDialogOpen(false)} 
+          qrCode={selectedQrCode}
+          onShareComplete={handleShareComplete}
+        />
+      )}
     </>
   );
 };

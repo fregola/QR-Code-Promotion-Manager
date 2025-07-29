@@ -1,507 +1,265 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   Button,
-  Box,
   Typography,
-  IconButton,
-  Snackbar,
-  Grid,
-  Paper,
-  Divider,
+  Box,
   TextField,
-  Chip,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText
+  Grid,
+  IconButton,
+  Divider,
+  Snackbar,
+  Alert
 } from '@mui/material';
 import {
-  WhatsApp as WhatsAppIcon,
-  Sms as SmsIcon,
-  Telegram as TelegramIcon,
-  ContentCopy as CopyIcon,
-  Share as ShareIcon,
-  Close as CloseIcon,
-  Email as EmailIcon,
   Facebook as FacebookIcon,
   Twitter as TwitterIcon,
-  LinkedIn as LinkedInIcon
+  WhatsApp as WhatsAppIcon,
+  Telegram as TelegramIcon,
+  Email as EmailIcon,
+  ContentCopy as ContentCopyIcon,
+  Close as CloseIcon
 } from '@mui/icons-material';
+import axios from 'axios';
 
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
-
-// Funzione per salvare condivisione nel database
-const saveShareToDatabase = async (qrCodeId, platform, message, recipient = null) => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/qrcodes/${qrCodeId}/share`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ platform })
-    });
-    
-    const data = await response.json();
-    return data;
-  } catch (error) {
-    console.error('Errore nel salvare la condivisione:', error);
-    return null;
-  }
-};
-
-// Funzione per caricare cronologia dal database
-const loadShareHistory = async (qrCodeId) => {
-  try {
-    const token = localStorage.getItem('token');
-    const response = await fetch(`${API_BASE_URL}/api/qrcodes/${qrCodeId}/shares`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-    
-    const data = await response.json();
-    return data.success ? data.data.shares : [];
-  } catch (error) {
-    console.error('Errore nel caricare la cronologia:', error);
-    return [];
-  }
-};
-
-const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => {
+const ShareDialog = ({ open, onClose, qrCode, onShareComplete }) => {
+  const [message, setMessage] = useState('');
+  const [recipient, setRecipient] = useState('');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [customMessage, setCustomMessage] = useState('');
-  const [recipientName, setRecipientName] = useState('');
-  const [shareHistory, setShareHistory] = useState([]);
-  
-  // Carica la cronologia delle condivisioni dal localStorage
-  // Carica la cronologia delle condivisioni dal database
-  useEffect(() => {
-    const loadHistory = async () => {
-      if (qrCode?._id) {
-        const history = await loadShareHistory(qrCode._id);
-        setShareHistory(history);
-      }
-    };
-    
-    loadHistory();
-  }, [qrCode?._id]);
-  
-  if (!qrCode) return null;
-  
-  const publicUrl = `${window.location.origin}/qrcode/${qrCode.code}`;
-  const defaultMessage = `Guarda questa promozione: ${qrCode.promotion?.name || 'QR Code'}`;
-  const shareText = customMessage || defaultMessage;
-  const fullMessage = `${shareText}\n\n${publicUrl}`;
+  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
-  // Funzione per aggiungere una condivisione alla cronologia
-  const addToShareHistory = async (platform, message, recipient = null) => {
-    // Salva nel database
-    const result = await saveShareToDatabase(qrCode._id, platform, message, recipient);
-    
-    if (result && result.success) {
-      // Aggiorna lo stato locale
-      const newShare = {
+  const handleClose = () => {
+    setMessage('');
+    setRecipient('');
+    onClose();
+  };
+
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
+
+  const showSnackbar = (message, severity = 'success') => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
+
+  const recordShare = async (platform) => {
+    try {
+      const token = localStorage.getItem('token');
+      await axios.post(`${API_BASE_URL}/api/qrcodes/${qrCode._id}/share`, {
         platform,
-        sharedAt: new Date().toISOString(),
-        sharedBy: { name: 'Tu' }, // L'API restituirà i dati completi
-        message,
-        recipient
-      };
+        message: message || undefined,
+        recipient: recipient || undefined
+      }, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
       
-      setShareHistory(prev => [newShare, ...prev]);
+      showSnackbar(`QR Code condiviso con successo su ${platform}`);
       
-      // Mostra messaggio di successo
-      setSnackbarMessage(`Condiviso su ${platform}! Salvato nella cronologia.`);
-      setSnackbarOpen(true);
-    } else {
-      // Se il salvataggio fallisce, mostra comunque il messaggio
-      setSnackbarMessage(`Condiviso su ${platform}! (Non salvato nella cronologia)`);
-      setSnackbarOpen(true);
-    }
-    
-    // Reset del campo nome destinatario dopo la condivisione
-    setRecipientName('');
-  };
-
-  const handleWhatsAppShare = () => {
-    const message = `${shareText}\n\n${publicUrl}`;
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    
-    window.open(whatsappUrl, '_blank');
-    addToShareHistory('WhatsApp', shareText, recipientName.trim() || null);
-  };
-
-  const tryOpenApp = (appUrl, webUrl, windowOptions = '_blank') => {
-    // Prova ad aprire l'app
-    const startTime = Date.now();
-    const iframe = document.createElement('iframe');
-    iframe.style.display = 'none';
-    iframe.src = appUrl;
-    document.body.appendChild(iframe);
-    
-    // Rimuovi l'iframe dopo un breve periodo
-    setTimeout(() => {
-      document.body.removeChild(iframe);
-    }, 100);
-    
-    // Se dopo 1.5 secondi la pagina è ancora attiva, apri la versione web
-    setTimeout(() => {
-      const endTime = Date.now();
-      // Se la differenza di tempo è piccola, probabilmente l'app non si è aperta
-      if (endTime - startTime < 2000) {
-        window.open(webUrl, windowOptions);
+      // Callback per aggiornare la UI del componente padre
+      if (onShareComplete) {
+        onShareComplete();
       }
-    }, 1500);
+    } catch (error) {
+      console.error('Errore durante la registrazione della condivisione:', error);
+      showSnackbar('Errore durante la registrazione della condivisione', 'error');
+    }
   };
 
-  const handleSmsShare = () => {
-    const message = `${shareText}\n\n${publicUrl}`;
-    const smsUrl = `sms:?body=${encodeURIComponent(message)}`;
-    
-    window.open(smsUrl);
-    addToShareHistory('SMS', shareText, recipientName.trim() || null);
+  const handleShare = (platform, url) => {
+    window.open(url, '_blank');
+    recordShare(platform);
   };
 
-  const handleTelegramShare = () => {
-    const telegramApp = `tg://msg_url?url=${encodeURIComponent(publicUrl)}&text=${encodeURIComponent(shareText)}`;
-    const telegramWeb = `https://t.me/share/url?url=${encodeURIComponent(publicUrl)}&text=${encodeURIComponent(shareText)}`;
-    
-    tryOpenApp(telegramApp, telegramWeb);
-    addToShareHistory('Telegram', shareText, recipientName.trim() || null);
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/public/qrcode/${qrCode._id}`;
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        showSnackbar('Link copiato negli appunti');
+        recordShare('Clipboard');
+      })
+      .catch(err => {
+        console.error('Errore durante la copia del link:', err);
+        showSnackbar('Errore durante la copia del link', 'error');
+      });
   };
 
   const handleEmailShare = () => {
-    const subject = shareText;
-    const body = `Ciao!\n\n${shareText}\n\n${publicUrl}\n\nSaluti`;
-    const emailUrl = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-    
-    window.open(emailUrl);
-    addToShareHistory('Email', shareText, recipientName.trim() || null);
+    const subject = 'Condivisione QR Code';
+    const body = message || `Ecco il QR Code che ti ho condiviso: ${window.location.origin}/public/qrcode/${qrCode._id}`;
+    const mailtoUrl = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoUrl, '_blank');
+    recordShare('Email');
   };
 
-  const handleFacebookShare = () => {
-    const facebookApp = `fb://share?link=${encodeURIComponent(publicUrl)}`;
-    const facebookWeb = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(publicUrl)}`;
+  const getShareUrl = (platform) => {
+    const url = `${window.location.origin}/public/qrcode/${qrCode._id}`;
+    const text = message || 'Ecco un QR Code che voglio condividere con te!';
     
-    tryOpenApp(facebookApp, facebookWeb, 'width=600,height=400');
-    addToShareHistory('Facebook', shareText, recipientName.trim() || null);
-  };
-
-  const handleTwitterShare = () => {
-    const twitterApp = `twitter://post?message=${encodeURIComponent(shareText + ' ' + publicUrl)}`;
-    const twitterWeb = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(publicUrl)}`;
-    
-    tryOpenApp(twitterApp, twitterWeb, 'width=600,height=400');
-    addToShareHistory('Twitter', shareText, recipientName.trim() || null);
-  };
-
-  const handleLinkedInShare = () => {
-    const linkedinApp = `linkedin://sharing/share-offsite/?url=${encodeURIComponent(publicUrl)}`;
-    const linkedinWeb = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(publicUrl)}`;
-    
-    tryOpenApp(linkedinApp, linkedinWeb, 'width=600,height=400');
-    addToShareHistory('LinkedIn', shareText, recipientName.trim() || null);
-  };
-
-  const handleCopyLink = async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(publicUrl);
-        setSnackbarMessage('Link copiato negli appunti!');
-      } else {
-        // Fallback per browser che non supportano l'API Clipboard
-        const textArea = document.createElement('textarea');
-        textArea.value = publicUrl;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.select();
-        const successful = document.execCommand('copy');
-        document.body.removeChild(textArea);
-        
-        if (successful) {
-          setSnackbarMessage('Link copiato negli appunti!');
-        } else {
-          setSnackbarMessage('Impossibile copiare automaticamente. Link: ' + publicUrl);
-        }
-      }
-      setSnackbarOpen(true);
-      addToShareHistory('Copia Link', shareText, recipientName.trim() || null);
-    } catch (error) {
-      console.error('Errore durante la copia:', error);
-      setSnackbarMessage('Errore durante la copia. Link: ' + publicUrl);
-      setSnackbarOpen(true);
+    switch (platform) {
+      case 'Facebook':
+        return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+      case 'Twitter':
+        return `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
+      case 'WhatsApp':
+        return `https://wa.me/?text=${encodeURIComponent(text + ' ' + url)}`;
+      case 'Telegram':
+        return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`;
+      default:
+        return '';
     }
   };
-
-  const handleNativeShare = async () => {
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: `QR Code: ${qrCode.code}`,
-          text: shareText,
-          url: publicUrl,
-        });
-        addToShareHistory('Condivisione Nativa', shareText, recipientName.trim() || null);
-      } catch (error) {
-        if (error.name !== 'AbortError') {
-          console.error('Errore durante la condivisione nativa:', error);
-        }
-      }
-    }
-  };
-
-  const shareOptions = [
-    {
-      name: 'WhatsApp',
-      icon: <WhatsAppIcon sx={{ fontSize: 40, color: '#25D366' }} />,
-      onClick: handleWhatsAppShare,
-      description: 'Condividi su WhatsApp'
-    },
-    {
-      name: 'Telegram',
-      icon: <TelegramIcon sx={{ fontSize: 40, color: '#0088cc' }} />,
-      onClick: handleTelegramShare,
-      description: 'Condividi su Telegram'
-    },
-    {
-      name: 'SMS',
-      icon: <SmsIcon sx={{ fontSize: 40, color: '#1976d2' }} />,
-      onClick: handleSmsShare,
-      description: 'Invia tramite SMS'
-    },
-    {
-      name: 'Email',
-      icon: <EmailIcon sx={{ fontSize: 40, color: '#EA4335' }} />,
-      onClick: handleEmailShare,
-      description: 'Invia tramite email'
-    },
-    {
-      name: 'Facebook',
-      icon: <FacebookIcon sx={{ fontSize: 40, color: '#1877F2' }} />,
-      onClick: handleFacebookShare,
-      description: 'Condividi su Facebook'
-    },
-    {
-      name: 'Twitter',
-      icon: <TwitterIcon sx={{ fontSize: 40, color: '#1DA1F2' }} />,
-      onClick: handleTwitterShare,
-      description: 'Condividi su Twitter'
-    },
-    {
-      name: 'LinkedIn',
-      icon: <LinkedInIcon sx={{ fontSize: 40, color: '#0A66C2' }} />,
-      onClick: handleLinkedInShare,
-      description: 'Condividi su LinkedIn'
-    },
-    {
-      name: 'Copia Link',
-      icon: <CopyIcon sx={{ fontSize: 40, color: '#666' }} />,
-      onClick: handleCopyLink,
-      description: 'Copia link negli appunti'
-    }
-  ];
-
-  // Aggiungi l'opzione di condivisione nativa se supportata
-  if (navigator.share) {
-    shareOptions.push({
-      name: 'Altro',
-      icon: <ShareIcon sx={{ fontSize: 40, color: '#666' }} />,
-      onClick: handleNativeShare,
-      description: 'Altre opzioni di condivisione'
-    });
-  }
 
   return (
     <>
-      <Dialog 
-        open={open} 
-        onClose={onClose} 
-        maxWidth="sm" 
-        fullWidth
-        PaperProps={{
-          sx: {
-            borderRadius: 2,
-            maxHeight: '80vh'
-          }
-        }}
-      >
-        <DialogTitle sx={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          alignItems: 'center',
-          pb: 1
-        }}>
-          <Typography variant="h6">{title}</Typography>
-          <IconButton onClick={onClose} size="small">
-            <CloseIcon />
-          </IconButton>
+      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Condividi QR Code</Typography>
+            <IconButton edge="end" color="inherit" onClick={handleClose} aria-label="close">
+              <CloseIcon />
+            </IconButton>
+          </Box>
         </DialogTitle>
-        
-        <DialogContent sx={{ pt: 2 }}>
-          {/* Informazioni QR Code */}
-          <Paper sx={{ p: 2, mb: 3, bgcolor: 'grey.50' }}>
+        <DialogContent>
+          <Box mb={3}>
             <Typography variant="subtitle1" gutterBottom>
-              {qrCode.promotion?.name || 'QR Code'}
+              Personalizza il tuo messaggio (opzionale)
             </Typography>
-            <Typography variant="body2" color="textSecondary" gutterBottom>
-              Codice: {qrCode.code}
-            </Typography>
-            <Typography variant="body2" color="textSecondary" sx={{ 
-              wordBreak: 'break-all',
-              fontSize: '0.875rem'
-            }}>
-              Link: {publicUrl}
-            </Typography>
-          </Paper>
-
-          {/* Campo messaggio personalizzato */}
-          <TextField
-             fullWidth
-             multiline
-             rows={3}
-             label="Messaggio personalizzato"
-             placeholder={defaultMessage}
-             value={customMessage}
-             onChange={(e) => setCustomMessage(e.target.value)}
-             sx={{ mb: 2 }}
-             helperText="Lascia vuoto per usare il messaggio predefinito"
-           />
-           
-          {/* Campo nome destinatario */}
-          <TextField
-             fullWidth
-             label="Nome destinatario (promemoria)"
-             placeholder="Es. Mario Rossi"
-             value={recipientName}
-             onChange={(e) => setRecipientName(e.target.value)}
-             sx={{ mb: 2 }}
-             helperText="Campo opzionale per tenere traccia del destinatario"
-           />
-           
-
-
-          <Divider sx={{ mb: 3 }} />
-
-          {/* Opzioni di condivisione */}
-          <Typography variant="subtitle1" gutterBottom sx={{ mb: 2 }}>
-            Scegli come condividere:
-          </Typography>
+            <TextField
+              fullWidth
+              multiline
+              rows={2}
+              variant="outlined"
+              placeholder="Scrivi un messaggio personalizzato..."
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+            />
+          </Box>
           
-          <Grid container spacing={2}>
-            {shareOptions.map((option, index) => (
-              <Grid item xs={6} sm={4} key={index}>
-                <Paper 
-                  sx={{ 
-                    p: 2, 
-                    textAlign: 'center', 
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: 3
-                    }
-                  }}
-                  onClick={option.onClick}
+          <Divider sx={{ my: 2 }} />
+          
+          <Typography variant="subtitle1" gutterBottom>
+            Condividi sui social
+          </Typography>
+          <Grid container spacing={2} sx={{ mb: 2 }}>
+            <Grid item xs={3}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                <IconButton 
+                  color="primary" 
+                  onClick={() => handleShare('Facebook', getShareUrl('Facebook'))}
+                  sx={{ bgcolor: '#e8f4ff', mb: 1 }}
                 >
-                  <Box sx={{ mb: 1 }}>
-                    {option.icon}
-                  </Box>
-                  <Typography variant="body2" fontWeight="medium">
-                    {option.name}
-                  </Typography>
-                  <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
-                    {option.description}
-                  </Typography>
-                </Paper>
-              </Grid>
-            ))}
+                  <FacebookIcon />
+                </IconButton>
+                <Typography variant="caption">Facebook</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={3}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                <IconButton 
+                  color="primary" 
+                  onClick={() => handleShare('Twitter', getShareUrl('Twitter'))}
+                  sx={{ bgcolor: '#e8f4ff', mb: 1 }}
+                >
+                  <TwitterIcon />
+                </IconButton>
+                <Typography variant="caption">Twitter</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={3}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                <IconButton 
+                  color="primary" 
+                  onClick={() => handleShare('WhatsApp', getShareUrl('WhatsApp'))}
+                  sx={{ bgcolor: '#e8f4ff', mb: 1 }}
+                >
+                  <WhatsAppIcon />
+                </IconButton>
+                <Typography variant="caption">WhatsApp</Typography>
+              </Box>
+            </Grid>
+            <Grid item xs={3}>
+              <Box display="flex" flexDirection="column" alignItems="center">
+                <IconButton 
+                  color="primary" 
+                  onClick={() => handleShare('Telegram', getShareUrl('Telegram'))}
+                  sx={{ bgcolor: '#e8f4ff', mb: 1 }}
+                >
+                  <TelegramIcon />
+                </IconButton>
+                <Typography variant="caption">Telegram</Typography>
+              </Box>
+            </Grid>
           </Grid>
-
-          {/* Cronologia delle condivisioni */}
-          {shareHistory.length > 0 && (
-            <>
-              <Divider sx={{ my: 3 }} />
-              <Typography variant="subtitle1" gutterBottom sx={{ mb: 2 }}>
-                Cronologia condivisioni:
-              </Typography>
-              <Paper sx={{ maxHeight: 200, overflow: 'auto' }}>
-                <List dense>
-                  {shareHistory.map((share, index) => (
-                    <ListItem key={share._id || index}>
-                      <ListItemIcon>
-                        <Chip
-                          label={share.platform}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={share.message || `Condiviso su ${share.platform}`}
-                        secondary={
-                          <>
-                            {share.recipient && (
-                              <Typography variant="caption" display="block" color="primary">
-                                Destinatario: {share.recipient}
-                              </Typography>
-                            )}
-                            <Typography variant="caption" display="block">
-                              {new Date(share.sharedAt).toLocaleString('it-IT')}
-                            </Typography>
-                          </>
-                        }
-                        primaryTypographyProps={{
-                          variant: 'body2',
-                          sx: {
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
-                          }
-                        }}
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              </Paper>
-            </>
-          )}
-          </DialogContent>
-        
-        <DialogActions sx={{ px: 3, pb: 3 }}>
-          <Button onClick={onClose} variant="outlined">
+          
+          <Divider sx={{ my: 2 }} />
+          
+          <Box mb={3}>
+            <Typography variant="subtitle1" gutterBottom>
+              Condividi via email
+            </Typography>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Indirizzo email del destinatario"
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+            <Button
+              variant="outlined"
+              startIcon={<EmailIcon />}
+              onClick={handleEmailShare}
+              disabled={!recipient}
+              fullWidth
+            >
+              Invia via Email
+            </Button>
+          </Box>
+          
+          <Divider sx={{ my: 2 }} />
+          
+          <Box>
+            <Typography variant="subtitle1" gutterBottom>
+              Copia link
+            </Typography>
+            <Button
+              variant="outlined"
+              startIcon={<ContentCopyIcon />}
+              onClick={handleCopyLink}
+              fullWidth
+            >
+              Copia Link
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleClose} color="primary">
             Chiudi
           </Button>
         </DialogActions>
       </Dialog>
-
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-        message={snackbarMessage}
+      
+      <Snackbar 
+        open={snackbarOpen} 
+        autoHideDuration={6000} 
+        onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        sx={{
-          '& .MuiSnackbarContent-root': {
-            backgroundColor: 'success.main',
-            color: 'white',
-            fontSize: '1rem',
-            padding: '10px 16px',
-            minWidth: '300px',
-            display: 'flex',
-            justifyContent: 'center'
-          }
-        }}
-      />
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

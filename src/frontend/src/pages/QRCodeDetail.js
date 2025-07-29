@@ -25,11 +25,14 @@ import {
   AccessTime as AccessTimeIcon,
   CalendarToday as CalendarTodayIcon,
   Person as PersonIcon,
-  Share as ShareIcon,
-  History
+  History,
+  Share as ShareIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import ShareDialog from '../components/ShareDialog';
+import ShareHistory from '../components/ShareHistory';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 const QRCodeDetail = () => {
   const { id } = useParams();
@@ -40,13 +43,15 @@ const QRCodeDetail = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareHistory, setShareHistory] = useState([]);
 
   useEffect(() => {
     const fetchQRCode = async () => {
       try {
         const res = await axios.get(`/api/qrcodes/${id}`);
         setQrCode(res.data.data);
+        
+        // Recupera le informazioni di condivisione
+        await fetchShareInfo(res.data.data);
       } catch (err) {
         setError(err.response?.data?.error || 'Errore durante il recupero del QR code');
       } finally {
@@ -61,22 +66,28 @@ const QRCodeDetail = () => {
       setLoading(false);
     }
   }, [id]);
-
-  const loadShareHistory = useCallback(() => {
-    if (qrCode?.code) {
-      const savedHistory = localStorage.getItem(`share_history_${qrCode.code}`);
-      if (savedHistory) {
-        setShareHistory(JSON.parse(savedHistory));
-      }
+  
+  const fetchShareInfo = async (qrCodeData) => {
+    try {
+      const token = localStorage.getItem('token');
+      const shareRes = await axios.get(`${API_BASE_URL}/api/qrcodes/${qrCodeData._id}/shares`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      setQrCode({
+        ...qrCodeData,
+        isShared: shareRes.data.data.totalShares > 0,
+        shares: shareRes.data.data.shares,
+        totalShares: shareRes.data.data.totalShares
+      });
+    } catch (error) {
+      console.error('Errore nel recupero delle condivisioni:', error);
     }
-  }, [qrCode?.code]);
+  };
 
-  // Carica la cronologia quando qrCode è disponibile
-  useEffect(() => {
-    if (qrCode?.code) {
-      loadShareHistory();
-    }
-  }, [qrCode?.code, loadShareHistory]);
+
 
   const handleBack = () => {
     navigate(-1);
@@ -87,18 +98,15 @@ const QRCodeDetail = () => {
       navigate(`/promotions/${qrCode.promotion._id}`);
     }
   };
-
-  const handleShareLink = () => {
+  
+  const handleShareClick = () => {
     setShareDialogOpen(true);
   };
   
-  const handleShareDialogClose = () => {
-    setShareDialogOpen(false);
-    // Ricarica la cronologia quando il dialog si chiude
-    loadShareHistory();
+  const handleShareComplete = () => {
+    // Aggiorna le informazioni di condivisione dopo una nuova condivisione
+    fetchShareInfo(qrCode);
   };
-
-
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
@@ -264,6 +272,18 @@ const QRCodeDetail = () => {
               )}
             </Grid>
 
+            {qrCode && qrCode.isShared && qrCode.shares && qrCode.shares.length > 0 && (
+              <>
+                <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+                  Cronologia condivisioni
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                {/* <Box sx={{ mb: 3 }}>
+                  <ShareHistory qrCode={qrCode} />
+                </Box> */}
+              </>
+            )}
+            
             <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
               Promozione associata
             </Typography>
@@ -333,57 +353,7 @@ const QRCodeDetail = () => {
               </CardContent>
             </Card>
 
-            {/* Cronologia condivisioni */}
-            {shareHistory.length > 0 && (
-              <Paper sx={{ p: 3, mt: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <History sx={{ mr: 1, color: 'primary.main' }} />
-                  <Typography variant="h6">
-                    Cronologia Condivisioni
-                  </Typography>
-                </Box>
-                <List>
-                  {shareHistory.map((share, index) => (
-                    <React.Fragment key={share.id}>
-                      <ListItem>
-                        <ListItemIcon>
-                          <Chip 
-                            label={share.platform} 
-                            size="small" 
-                            color="primary" 
-                            variant="outlined"
-                          />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={share.message}
-                          secondary={
-                            <>
-                              {share.recipient && (
-                                <Typography variant="caption" display="block" color="primary">
-                                  Destinatario: {share.recipient}
-                                </Typography>
-                              )}
-                              <Typography variant="caption" display="block">
-                                {share.timestamp}
-                              </Typography>
-                            </>
-                          }
-                          primaryTypographyProps={{ 
-                            variant: 'body2',
-                            sx: { 
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
-                            }
-                          }}
-                        />
-                      </ListItem>
-                      {index < shareHistory.length - 1 && <Divider />}
-                    </React.Fragment>
-                  ))}
-                </List>
-              </Paper>
-            )}
+
 
             <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>
               <Button
@@ -393,25 +363,30 @@ const QRCodeDetail = () => {
               >
                 Verifica QR Code
               </Button>
+              
               <Button
                 variant="outlined"
-                color="secondary"
+                color="primary"
                 startIcon={<ShareIcon />}
-                onClick={handleShareLink}
+                onClick={handleShareClick}
               >
-                Condividi QR Code
+                Condividi
               </Button>
             </Box>
           </Paper>
         </Grid>
 
       </Grid>
-     <ShareDialog
-          open={shareDialogOpen}
-          onClose={handleShareDialogClose}
+      
+      {/* Share Dialog */}
+      {qrCode && (
+        <ShareDialog 
+          open={shareDialogOpen} 
+          onClose={() => setShareDialogOpen(false)} 
           qrCode={qrCode}
-          title="Condividi QR Code"
+          onShareComplete={handleShareComplete}
         />
+      )}
       
       <Snackbar
         open={snackbarOpen}
