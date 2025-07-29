@@ -24,9 +24,7 @@ import {
   Cancel as CancelIcon,
   AccessTime as AccessTimeIcon,
   CalendarToday as CalendarTodayIcon,
-  Person as PersonIcon,
-  Share as ShareIcon,
-  History
+  Share as ShareIcon
 } from '@mui/icons-material';
 import axios from 'axios';
 import ShareDialog from '../components/ShareDialog';
@@ -40,7 +38,6 @@ const QRCodeDetail = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareHistory, setShareHistory] = useState([]);
 
   useEffect(() => {
     const fetchQRCode = async () => {
@@ -62,31 +59,13 @@ const QRCodeDetail = () => {
     }
   }, [id]);
 
-  const loadShareHistory = useCallback(() => {
-    if (qrCode?.code) {
-      const savedHistory = localStorage.getItem(`share_history_${qrCode.code}`);
-      if (savedHistory) {
-        setShareHistory(JSON.parse(savedHistory));
-      }
-    }
-  }, [qrCode?.code]);
-
-  // Carica la cronologia quando qrCode è disponibile
-  useEffect(() => {
-    if (qrCode?.code) {
-      loadShareHistory();
-    }
-  }, [qrCode?.code, loadShareHistory]);
+  // La cronologia delle condivisioni viene ora caricata direttamente dal database nel componente ShareDialog
 
   const handleBack = () => {
     navigate(-1);
   };
 
-  const handlePromotionClick = () => {
-    if (qrCode?.promotion?._id) {
-      navigate(`/promotions/${qrCode.promotion._id}`);
-    }
-  };
+  // Funzione rimossa perché non più necessaria dopo la rimozione della sezione "Promozione associata"
 
   const handleShareLink = () => {
     setShareDialogOpen(true);
@@ -94,8 +73,7 @@ const QRCodeDetail = () => {
   
   const handleShareDialogClose = () => {
     setShareDialogOpen(false);
-    // Ricarica la cronologia quando il dialog si chiude
-    loadShareHistory();
+    // La cronologia viene aggiornata automaticamente nel componente ShareDialog
   };
 
 
@@ -234,6 +212,16 @@ const QRCodeDetail = () => {
                 </Typography>
                 <Typography variant="body1" gutterBottom>
                   {qrCode.usageCount} / {qrCode.maxUsageCount}
+                  {qrCode.shares && qrCode.shares.length > 0 && (
+                    <Chip
+                      icon={<ShareIcon fontSize="small" />}
+                      label="Condiviso"
+                      size="small"
+                      color="info"
+                      variant="outlined"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
                 </Typography>
               </Grid>
 
@@ -262,127 +250,78 @@ const QRCodeDetail = () => {
                   </Box>
                 </Grid>
               )}
+              
+              {qrCode.promotion?.expiryDate && new Date(qrCode.promotion.expiryDate).getFullYear() > 1970 && (
+                <Grid item xs={12} sm={6}>
+                  <Typography variant="subtitle2" color="textSecondary">
+                    Scadenza
+                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                    <CalendarTodayIcon fontSize="small" sx={{ mr: 1 }} />
+                    <Typography variant="body1" gutterBottom>
+                      {new Date(qrCode.promotion.expiryDate).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
             </Grid>
 
-            <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-              Promozione associata
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-
-            <Card sx={{ mb: 2, cursor: 'pointer' }} onClick={handlePromotionClick}>
-              <CardContent>
-                <Typography variant="h6">{qrCode.promotion.name}</Typography>
-                {qrCode.promotion.description && (
-                  <Typography variant="body2" color="textSecondary" sx={{ mb: 1 }}>
-                    {qrCode.promotion.description}
-                  </Typography>
-                )}
+            {/* Cronologia delle condivisioni */}
+            {qrCode.shares && qrCode.shares.length > 0 && (
+              <>
+                <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+                  Cronologia condivisioni
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
                 
-
-
-                <Grid container spacing={2} sx={{ mt: 1 }}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Stato
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      {qrCode.promotion.active ? (
-                        <Chip
-                          icon={<CheckCircleIcon />}
-                          label="Attiva"
-                          color="success"
-                          size="small"
-                        />
-                      ) : (
-                        <Chip
-                          icon={<CancelIcon />}
-                          label="Da utilizzare"
-                          color="error"
-                          size="small"
-                        />
-                      )}
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Scadenza
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <CalendarTodayIcon fontSize="small" sx={{ mr: 1 }} />
-                      <Typography variant="body1">
-                        {qrCode.promotion.expiryDate && new Date(qrCode.promotion.expiryDate).getFullYear() > 1970 
-                          ? new Date(qrCode.promotion.expiryDate).toLocaleDateString()
-                          : 'Nessuna scadenza'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Creata da
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-                      <Typography variant="body1">
-                        {qrCode.promotion.user?.name || 'Utente sconosciuto'}
-                      </Typography>
-                    </Box>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-
-            {/* Cronologia condivisioni */}
-            {shareHistory.length > 0 && (
-              <Paper sx={{ p: 3, mt: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <History sx={{ mr: 1, color: 'primary.main' }} />
-                  <Typography variant="h6">
-                    Cronologia Condivisioni
-                  </Typography>
-                </Box>
-                <List>
-                  {shareHistory.map((share, index) => (
-                    <React.Fragment key={share.id}>
-                      <ListItem>
-                        <ListItemIcon>
-                          <Chip 
-                            label={share.platform} 
-                            size="small" 
-                            color="primary" 
-                            variant="outlined"
-                          />
-                        </ListItemIcon>
-                        <ListItemText
-                          primary={share.message}
-                          secondary={
-                            <>
-                              {share.recipient && (
-                                <Typography variant="caption" display="block" color="primary">
-                                  Destinatario: {share.recipient}
-                                </Typography>
-                              )}
+                <Paper sx={{ maxHeight: 200, overflow: 'auto', mb: 3 }}>
+                  <List dense>
+                    {qrCode.shares.map((share, index) => {
+                      // Mappa per convertire i valori del backend in nomi visualizzabili
+                      const platformDisplayMap = {
+                        'whatsapp': 'WhatsApp',
+                        'sms': 'SMS',
+                        'telegram': 'Telegram',
+                        'email': 'Email',
+                        'facebook': 'Facebook',
+                        'twitter': 'Twitter',
+                        'link': 'Copia Link'
+                      };
+                      
+                      const displayPlatform = platformDisplayMap[share.platform] || share.platform;
+                      
+                      return (
+                        <ListItem key={share._id || index}>
+                          <ListItemIcon>
+                            <Chip
+                              label={displayPlatform}
+                              size="small"
+                              color="primary"
+                              variant="outlined"
+                            />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={share.message || `Condiviso su ${displayPlatform}`}
+                            secondary={
                               <Typography variant="caption" display="block">
-                                {share.timestamp}
+                                {new Date(share.sharedAt).toLocaleString('it-IT')}
                               </Typography>
-                            </>
-                          }
-                          primaryTypographyProps={{ 
-                            variant: 'body2',
-                            sx: { 
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap'
                             }
-                          }}
-                        />
-                      </ListItem>
-                      {index < shareHistory.length - 1 && <Divider />}
-                    </React.Fragment>
-                  ))}
-                </List>
-              </Paper>
+                            primaryTypographyProps={{
+                              variant: 'body2',
+                              sx: {
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }
+                            }}
+                          />
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                </Paper>
+              </>
             )}
 
             <Box sx={{ mt: 3, display: 'flex', gap: 2 }}>

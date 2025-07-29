@@ -33,22 +33,45 @@ import {
 } from '@mui/icons-material';
 
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
 
 // Funzione per salvare condivisione nel database
 const saveShareToDatabase = async (qrCodeId, platform, message, recipient = null) => {
   try {
     const token = localStorage.getItem('token');
+    
+    // Mappa delle piattaforme per convertire i nomi visualizzati nei valori accettati dal backend
+    const platformMap = {
+      'WhatsApp': 'whatsapp',
+      'SMS': 'sms',
+      'Telegram': 'telegram',
+      'Email': 'email',
+      'Facebook': 'facebook',
+      'Twitter': 'twitter',
+      'LinkedIn': 'twitter', // Usiamo twitter come fallback per LinkedIn
+      'Copia Link': 'link',
+      'Condivisione Nativa': 'link'
+    };
+    
+    // Converti la piattaforma nel formato accettato dal backend
+    const normalizedPlatform = platformMap[platform] || platform.toLowerCase();
+    
+    console.log('Token per salvataggio condivisione:', token ? 'Presente' : 'Assente');
+    console.log('URL richiesta salvataggio:', `${API_BASE_URL}/api/qrcodes/${qrCodeId}/share`);
+    console.log('Piattaforma originale:', platform);
+    console.log('Piattaforma normalizzata:', normalizedPlatform);
+    
     const response = await fetch(`${API_BASE_URL}/api/qrcodes/${qrCodeId}/share`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      body: JSON.stringify({ platform })
+      body: JSON.stringify({ platform: normalizedPlatform })
     });
     
     const data = await response.json();
+    console.log('Risposta salvataggio condivisione:', data);
     return data;
   } catch (error) {
     console.error('Errore nel salvare la condivisione:', error);
@@ -60,6 +83,9 @@ const saveShareToDatabase = async (qrCodeId, platform, message, recipient = null
 const loadShareHistory = async (qrCodeId) => {
   try {
     const token = localStorage.getItem('token');
+    console.log('Token per caricamento cronologia:', token ? 'Presente' : 'Assente');
+    console.log('URL richiesta cronologia:', `${API_BASE_URL}/api/qrcodes/${qrCodeId}/shares`);
+    
     const response = await fetch(`${API_BASE_URL}/api/qrcodes/${qrCodeId}/shares`, {
       method: 'GET',
       headers: {
@@ -68,7 +94,29 @@ const loadShareHistory = async (qrCodeId) => {
     });
     
     const data = await response.json();
-    return data.success ? data.data.shares : [];
+    console.log('Risposta cronologia condivisioni:', data);
+    
+    // Mappa per convertire i valori del backend in nomi visualizzabili
+    const platformDisplayMap = {
+      'whatsapp': 'WhatsApp',
+      'sms': 'SMS',
+      'telegram': 'Telegram',
+      'email': 'Email',
+      'facebook': 'Facebook',
+      'twitter': 'Twitter',
+      'link': 'Copia Link'
+    };
+    
+    // Se abbiamo dati validi, mappiamo le piattaforme ai nomi visualizzabili
+    if (data.success && data.data.shares) {
+      return data.data.shares.map(share => ({
+        ...share,
+        // Converti la piattaforma al nome visualizzabile, se disponibile
+        platform: platformDisplayMap[share.platform] || share.platform
+      }));
+    }
+    
+    return [];
   } catch (error) {
     console.error('Errore nel caricare la cronologia:', error);
     return [];
@@ -82,12 +130,13 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
   const [recipientName, setRecipientName] = useState('');
   const [shareHistory, setShareHistory] = useState([]);
   
-  // Carica la cronologia delle condivisioni dal localStorage
   // Carica la cronologia delle condivisioni dal database
   useEffect(() => {
     const loadHistory = async () => {
       if (qrCode?._id) {
+        console.log('Caricamento cronologia per QR code:', qrCode._id);
         const history = await loadShareHistory(qrCode._id);
+        console.log('Cronologia caricata:', history);
         setShareHistory(history);
       }
     };
@@ -108,9 +157,9 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
     const result = await saveShareToDatabase(qrCode._id, platform, message, recipient);
     
     if (result && result.success) {
-      // Aggiorna lo stato locale
+      // Aggiorna lo stato locale con la piattaforma originale per la visualizzazione
       const newShare = {
-        platform,
+        platform, // Manteniamo il nome originale per la visualizzazione
         sharedAt: new Date().toISOString(),
         sharedBy: { name: 'Tu' }, // L'API restituirà i dati completi
         message,
@@ -122,6 +171,10 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
       // Mostra messaggio di successo
       setSnackbarMessage(`Condiviso su ${platform}! Salvato nella cronologia.`);
       setSnackbarOpen(true);
+      
+      // Ricarica la cronologia dal database per assicurarsi che sia aggiornata
+      const history = await loadShareHistory(qrCode._id);
+      setShareHistory(history);
     } else {
       // Se il salvataggio fallisce, mostra comunque il messaggio
       setSnackbarMessage(`Condiviso su ${platform}! (Non salvato nella cronologia)`);
@@ -235,6 +288,7 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
         }
       }
       setSnackbarOpen(true);
+      // Usiamo 'Copia Link' per la visualizzazione, ma il backend riceverà 'link' grazie alla mappatura
       addToShareHistory('Copia Link', shareText, recipientName.trim() || null);
     } catch (error) {
       console.error('Errore durante la copia:', error);
@@ -251,6 +305,7 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
           text: shareText,
           url: publicUrl,
         });
+        // Usiamo 'Condivisione Nativa' per la visualizzazione, ma il backend riceverà 'link' grazie alla mappatura
         addToShareHistory('Condivisione Nativa', shareText, recipientName.trim() || null);
       } catch (error) {
         if (error.name !== 'AbortError') {
@@ -432,45 +487,48 @@ const ShareDialog = ({ open, onClose, qrCode, title = "Condividi QR Code" }) => 
             <>
               <Divider sx={{ my: 3 }} />
               <Typography variant="subtitle1" gutterBottom sx={{ mb: 2 }}>
-                Cronologia condivisioni:
+                Cronologia condivisioni: {shareHistory.length} elementi
               </Typography>
               <Paper sx={{ maxHeight: 200, overflow: 'auto' }}>
                 <List dense>
-                  {shareHistory.map((share, index) => (
-                    <ListItem key={share._id || index}>
-                      <ListItemIcon>
-                        <Chip
-                          label={share.platform}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={share.message || `Condiviso su ${share.platform}`}
-                        secondary={
-                          <>
-                            {share.recipient && (
-                              <Typography variant="caption" display="block" color="primary">
-                                Destinatario: {share.recipient}
+                  {shareHistory.map((share, index) => {
+                    console.log('Rendering share:', share);
+                    return (
+                      <ListItem key={share._id || index}>
+                        <ListItemIcon>
+                          <Chip
+                            label={share.platform}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={share.message || `Condiviso su ${share.platform}`}
+                          secondary={
+                            <>
+                              {share.recipient && (
+                                <Typography variant="caption" display="block" color="primary">
+                                  Destinatario: {share.recipient}
+                                </Typography>
+                              )}
+                              <Typography variant="caption" display="block">
+                                {new Date(share.sharedAt).toLocaleString('it-IT')}
                               </Typography>
-                            )}
-                            <Typography variant="caption" display="block">
-                              {new Date(share.sharedAt).toLocaleString('it-IT')}
-                            </Typography>
-                          </>
-                        }
-                        primaryTypographyProps={{
-                          variant: 'body2',
-                          sx: {
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap'
+                            </>
                           }
-                        }}
-                      />
-                    </ListItem>
-                  ))}
+                          primaryTypographyProps={{
+                            variant: 'body2',
+                            sx: {
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }
+                          }}
+                        />
+                      </ListItem>
+                    );
+                  })}
                 </List>
               </Paper>
             </>
