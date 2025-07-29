@@ -180,6 +180,7 @@ const PromotionDetail = () => {
   };
 
   const handleQrCodeClick = (qrCode) => {
+    console.log('Selected QR Code:', qrCode);
     setSelectedQrCode(qrCode);
     
     // Verifica se il QR code è stato condiviso
@@ -555,6 +556,7 @@ const PromotionDetail = () => {
                         size="small"
                         startIcon={<ShareIcon />}
                         onClick={() => {
+                          console.log('Opening ShareDialog with qrCode:', qrCode);
                           setSelectedQrCode(qrCode);
                           setShareDialogOpen(true);
                         }}
