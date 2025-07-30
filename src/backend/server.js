@@ -32,6 +32,9 @@ const corsOptions = {
       'http://84.247.137.249',  // Server IP
       'http://84.247.137.249:3000', // Server con porta
       'https://84.247.137.249', // HTTPS se utilizzato
+      'https://qrcodepromotion.it',
+      'http://qrcodepromotion.it',
+
     ];
     
     // In sviluppo permetti tutti i localhost
