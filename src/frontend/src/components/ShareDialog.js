@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const ShareDialog = ({ open, onClose, qrCode, onShareComplete }) => {
   const [message, setMessage] = useState('');
@@ -133,6 +133,20 @@ const ShareDialog = ({ open, onClose, qrCode, onShareComplete }) => {
         <DialogContent>
           <Box mb={3}>
             <Typography variant="subtitle1" gutterBottom>
+              Destinatario (opzionale)
+            </Typography>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Email o nome del destinatario (opzionale)"
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value)}
+              sx={{ mb: 2 }}
+            />
+          </Box>
+          
+          <Box mb={3}>
+            <Typography variant="subtitle1" gutterBottom>
               Personalizza il tuo messaggio (opzionale)
             </Typography>
             <TextField
@@ -168,12 +182,12 @@ const ShareDialog = ({ open, onClose, qrCode, onShareComplete }) => {
               <Box display="flex" flexDirection="column" alignItems="center">
                 <IconButton 
                   color="primary" 
-                  onClick={() => handleShare('Twitter', getShareUrl('Twitter'))}
+                  onClick={handleEmailShare}
                   sx={{ bgcolor: '#e8f4ff', mb: 1 }}
                 >
-                  <TwitterIcon />
+                  <EmailIcon />
                 </IconButton>
-                <Typography variant="caption">Twitter</Typography>
+                <Typography variant="caption">Email</Typography>
               </Box>
             </Grid>
             <Grid item xs={3}>
@@ -204,30 +218,7 @@ const ShareDialog = ({ open, onClose, qrCode, onShareComplete }) => {
           
           <Divider sx={{ my: 2 }} />
           
-          <Box mb={3}>
-            <Typography variant="subtitle1" gutterBottom>
-              Condividi via email
-            </Typography>
-            <TextField
-              fullWidth
-              variant="outlined"
-              placeholder="Indirizzo email del destinatario"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              sx={{ mb: 2 }}
-            />
-            <Button
-              variant="outlined"
-              startIcon={<EmailIcon />}
-              onClick={handleEmailShare}
-              disabled={!recipient}
-              fullWidth
-            >
-              Invia via Email
-            </Button>
-          </Box>
-          
-          <Divider sx={{ my: 2 }} />
+
           
           <Box>
             <Typography variant="subtitle1" gutterBottom>

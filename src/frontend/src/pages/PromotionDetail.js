@@ -40,7 +40,7 @@ import JSZip from 'jszip';
 import ShareDialog from '../components/ShareDialog';
 import ShareHistory from '../components/ShareHistory';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const PromotionDetail = () => {
   const { id } = useParams();

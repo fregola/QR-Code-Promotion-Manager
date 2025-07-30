@@ -32,7 +32,7 @@ import axios from 'axios';
 import ShareDialog from '../components/ShareDialog';
 import ShareHistory from '../components/ShareHistory';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 const QRCodeDetail = () => {
   const { id } = useParams();
@@ -272,18 +272,6 @@ const QRCodeDetail = () => {
               )}
             </Grid>
 
-            {qrCode && qrCode.isShared && qrCode.shares && qrCode.shares.length > 0 && (
-              <>
-                <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                  Cronologia condivisioni
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                {/* <Box sx={{ mb: 3 }}>
-                  <ShareHistory qrCode={qrCode} />
-                </Box> */}
-              </>
-            )}
-            
             <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
               Promozione associata
             </Typography>
@@ -338,17 +326,7 @@ const QRCodeDetail = () => {
                     </Box>
                   </Grid>
 
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Creata da
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                      <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-                      <Typography variant="body1">
-                        {qrCode.promotion.user?.name || 'Utente sconosciuto'}
-                      </Typography>
-                    </Box>
-                  </Grid>
+
                 </Grid>
               </CardContent>
             </Card>
@@ -372,6 +350,14 @@ const QRCodeDetail = () => {
               >
                 Condividi
               </Button>
+            </Box>
+            
+            <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+              Cronologia condivisioni
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Box sx={{ mb: 3 }}>
+              <ShareHistory qrCode={qrCode} />
             </Box>
           </Paper>
         </Grid>

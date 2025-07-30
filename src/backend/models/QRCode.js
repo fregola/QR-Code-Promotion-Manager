@@ -41,7 +41,7 @@ const QRCodeSchema = new mongoose.Schema({
   shares: [{
     platform: {
       type: String,
-      enum: ['whatsapp', 'sms', 'telegram', 'facebook', 'twitter', 'email', 'link'],
+      enum: ['whatsapp', 'sms', 'telegram', 'facebook', 'twitter', 'email', 'link', 'Facebook', 'Twitter', 'WhatsApp', 'Telegram', 'Email', 'Clipboard'],
       required: true
     },
     sharedAt: {
@@ -51,6 +51,14 @@ const QRCodeSchema = new mongoose.Schema({
     sharedBy: {
       type: mongoose.Schema.ObjectId,
       ref: 'User'
+    },
+    recipient: {
+      type: String,
+      required: false
+    },
+    message: {
+      type: String,
+      required: false
     }
   }],
   totalShares: {

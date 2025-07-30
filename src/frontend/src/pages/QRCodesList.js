@@ -29,6 +29,7 @@ import {
   Cancel as CancelIcon,
   Visibility as VisibilityIcon,
   QrCode as QrCodeIcon,
+  Share as ShareIcon,
 } from '@mui/icons-material';
 import axios from 'axios';
 
@@ -190,6 +191,7 @@ const QRCodesList = () => {
                     <TableCell>Promozione</TableCell>
                     <TableCell>Utilizzi</TableCell>
                     <TableCell>Stato</TableCell>
+                    <TableCell>Condiviso</TableCell>
                     <TableCell>Creato il</TableCell>
                     <TableCell>Azioni</TableCell>
                   </TableRow>
@@ -215,6 +217,22 @@ const QRCodesList = () => {
                             icon={<CheckCircleIcon />}
                             label="Disponibile"
                             color="success"
+                            size="small"
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {qrCode.shares && qrCode.shares.length > 0 ? (
+                          <Chip
+                            icon={<ShareIcon />}
+                            label={`${qrCode.shares.length} condivisioni`}
+                            color="primary"
+                            size="small"
+                          />
+                        ) : (
+                          <Chip
+                            label="Non condiviso"
+                            variant="outlined"
                             size="small"
                           />
                         )}

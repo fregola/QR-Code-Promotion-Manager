@@ -139,86 +139,7 @@ const QRCodeVerify = () => {
           </CardContent>
         </Card>
         
-        {qrCodeData.business && (
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Informazioni Azienda
-              </Typography>
-              <Divider sx={{ mb: 2 }} />
-              
-              {qrCodeData.business.businessLogo && (
-                <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
-                  <Box 
-                    component="img"
-                    src={qrCodeData.business.businessLogo}
-                    alt="Logo aziendale"
-                    sx={{ 
-                      maxWidth: '100%', 
-                      maxHeight: '150px',
-                      objectFit: 'contain'
-                    }}
-                  />
-                </Box>
-              )}
-              
-              <Typography variant="h5" gutterBottom>
-                {qrCodeData.business.businessName || qrCodeData.business.name}
-              </Typography>
-              
-              {qrCodeData.business.businessType && (
-                <Typography variant="body1" color="textSecondary" sx={{ mb: 2 }}>
-                  {qrCodeData.business.businessType}
-                </Typography>
-              )}
-              
-              <Grid container spacing={2}>
-                {(qrCodeData.business.address || qrCodeData.business.city || qrCodeData.business.postalCode) && (
-                  <Grid item xs={12}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Indirizzo
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      {[qrCodeData.business.address, qrCodeData.business.city, qrCodeData.business.postalCode]
-                        .filter(Boolean)
-                        .join(', ')}
-                    </Typography>
-                  </Grid>
-                )}
-                
-                {qrCodeData.business.phoneNumber && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Telefono
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <a href={`tel:${qrCodeData.business.phoneNumber}`} 
-                         style={{ color: 'inherit', textDecoration: 'underline', cursor: 'pointer' }}>
-                        {qrCodeData.business.phoneNumber}
-                      </a>
-                    </Typography>
-                  </Grid>
-                )}
-                
-                {qrCodeData.business.website && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="subtitle2" color="textSecondary">
-                      Sito Web
-                    </Typography>
-                    <Typography variant="body1" gutterBottom>
-                      <a href={qrCodeData.business.website.startsWith('http') ? qrCodeData.business.website : `https://${qrCodeData.business.website}`} 
-                         target="_blank" 
-                         rel="noopener noreferrer"
-                         style={{ color: 'inherit', textDecoration: 'underline' }}>
-                        {qrCodeData.business.website}
-                      </a>
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </CardContent>
-          </Card>
-        )}
+
         
         <Card>
           <CardContent>
@@ -239,7 +160,7 @@ const QRCodeVerify = () => {
                 variant="contained"
                 color="primary"
                 onClick={handleVerify}
-                disabled={verifyLoading || qrCodeData.usageCount >= qrCodeData.maxUsageCount || !qrCodeData.promotion.active || new Date(qrCodeData.promotion.expiryDate) < new Date()}
+                disabled={verifyLoading}
               >
                 {verifyLoading ? <CircularProgress size={24} /> : 'Verifica QR Code'}
               </Button>

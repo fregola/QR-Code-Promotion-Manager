@@ -281,7 +281,7 @@ exports.getQRCodeByCode = async (req, res) => {
 // @access  Private
 exports.shareQRCode = async (req, res) => {
   try {
-    const { platform } = req.body;
+    const { platform, recipient, message } = req.body;
     
     if (!platform) {
       return res.status(400).json({
@@ -309,13 +309,22 @@ exports.shareQRCode = async (req, res) => {
       });
     }
 
-    // Aggiungi la condivisione all'array
-    qrCode.shares.push({
+    // Aggiungi la condivisione all'array - sempre salvata nella cronologia
+    const shareData = {
       platform: platform,
       sharedAt: new Date(),
       sharedBy: req.user.id
-    });
+    };
     
+    // Aggiungi recipient e message se forniti
+    if (recipient) {
+      shareData.recipient = recipient;
+    }
+    if (message) {
+      shareData.message = message;
+    }
+    
+    qrCode.shares.push(shareData);
     qrCode.totalShares = qrCode.shares.length;
     
     await qrCode.save();
