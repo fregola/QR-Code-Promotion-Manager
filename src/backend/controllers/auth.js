@@ -198,7 +198,23 @@ exports.login = async (req, res) => {
 // @access  Private
 exports.getMe = async (req, res) => {
   try {
+    // Controllo di sicurezza per req.user
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        error: 'Utente non autenticato'
+      });
+    }
+
     const user = await User.findById(req.user.id);
+
+    // Controllo se l'utente esiste nel database
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'Utente non trovato'
+      });
+    }
 
     res.status(200).json({
       success: true,
