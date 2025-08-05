@@ -39,6 +39,35 @@ const PromotionsList = () => {
   const [filteredPromotions, setFilteredPromotions] = useState([]);
   const navigate = useNavigate();
 
+  // Funzione per determinare lo stato della promozione
+  const getPromotionStatus = (promotion) => {
+    const now = new Date();
+    const hasExpiry = promotion.expiryDate && new Date(promotion.expiryDate).getFullYear() > 1970;
+    const isExpired = hasExpiry && new Date(promotion.expiryDate).setHours(23, 59, 59, 999) < now;
+    
+    // Logica stati:
+    if (!promotion.isActive) {
+      return { label: 'Disattivata', color: 'default' };
+    }
+    if (isExpired) {
+      return { label: 'Scaduta', color: 'error' };
+    }
+    
+    // Controllo se tutti i QR sono esauriti
+    const allQRUsed = promotion.qrCodes && promotion.qrCodes.every(qr => qr.usageCount >= qr.maxUsageCount);
+    if (allQRUsed) {
+      return { label: 'Esaurita', color: 'error' };
+    }
+    
+    return { label: 'Attiva', color: 'success' };
+    // TODO: Quando avremo i dati degli QR utilizzati, aggiungeremo:
+    // if (promotion.usedQRCount >= promotion.qrCodesCount) {
+    //   return { label: 'Terminata', color: 'error' };
+    // }
+    // TODO: Logica esaurita quando implementeremo conteggio QR
+    return { label: 'Attiva', color: 'success' };
+  };
+
   useEffect(() => {
     const fetchPromotions = async () => {
       try {
@@ -152,47 +181,51 @@ const PromotionsList = () => {
             </TableHead>
             <TableBody>
               {filteredPromotions.length > 0 ? (
-                filteredPromotions.map((promotion) => (
-                  <TableRow key={promotion._id}>
-                    <TableCell>{promotion.name}</TableCell>
-                    <TableCell>
-                      {new Date(promotion.createdAt).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {promotion.expiryDate
-                        ? new Date(promotion.expiryDate).toLocaleDateString()
-                        : 'Nessuna scadenza'}
-                    </TableCell>
-                    <TableCell>{promotion.qrCodesCount}</TableCell>
-                    <TableCell>
-                      <Chip
-                        label={promotion.isActive ? 'Attiva' : 'Da utilizzare'}
-                        color={promotion.isActive ? 'success' : 'error'}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        color="primary"
-                        onClick={() => navigate(`/promotions/${promotion._id}`)}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                      <IconButton
-                        color="secondary"
-                        onClick={() => navigate(`/promotions/${promotion._id}`, { state: { edit: true } })}
-                      >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
-                        color="error"
-                        onClick={() => handleDelete(promotion._id)}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredPromotions.map((promotion) => {
+                  const status = getPromotionStatus(promotion);
+                  
+                  return (
+                    <TableRow key={promotion._id}>
+                      <TableCell>{promotion.name}</TableCell>
+                      <TableCell>
+                        {new Date(promotion.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        {promotion.expiryDate
+                          ? new Date(promotion.expiryDate).toLocaleDateString()
+                          : 'Nessuna scadenza'}
+                      </TableCell>
+                      <TableCell>{promotion.qrCodesCount}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={status.label}
+                          color={status.color}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <IconButton
+                          color="primary"
+                          onClick={() => navigate(`/promotions/${promotion._id}`)}
+                        >
+                          <VisibilityIcon />
+                        </IconButton>
+                        <IconButton
+                          color="secondary"
+                          onClick={() => navigate(`/promotions/${promotion._id}`, { state: { edit: true } })}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          color="error"
+                          onClick={() => handleDelete(promotion._id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               ) : (
                 <TableRow>
                   <TableCell colSpan={6} align="center">

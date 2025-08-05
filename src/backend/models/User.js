@@ -30,7 +30,19 @@ const UserSchema = new mongoose.Schema({
     enum: ['user', 'admin'],
     default: 'user',
   },
-  
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+lastLogin: {
+    type: Date,
+  },
+  emailVerified: {
+    type: Boolean,
+    default: false,
+  },
+  emailVerificationToken: String,
+  emailVerificationExpire: Date,
   // NUOVI CAMPI LEGALI OBBLIGATORI
   legalAcceptance: {
     acceptedTerms: {
@@ -166,3 +178,4 @@ UserSchema.methods.updateLegalConsents = function(consents, ipAddress, userAgent
 };
 
 module.exports = mongoose.model('User', UserSchema);
+

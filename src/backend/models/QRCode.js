@@ -37,6 +37,35 @@ const QRCodeSchema = new mongoose.Schema({
   },
   qrImagePath: {
     type: String
+  },
+  shares: [{
+    platform: {
+      type: String,
+      required: true,
+      enum: ['WhatsApp', 'SMS', 'Telegram', 'Email', 'Facebook', 'Twitter', 'LinkedIn', 'Copia Link', 'Condivisione Nativa']
+    },
+    message: {
+      type: String,
+      required: true
+    },
+    recipient: {
+      type: String,
+      default: null
+    },
+    timestamp: {
+      type: Date,
+      default: Date.now
+    },
+    ipAddress: {
+      type: String
+    }
+  }],
+  totalShares: {
+    type: Number,
+    default: 0
+  },
+  lastSharedAt: {
+    type: Date
   }
 });
 

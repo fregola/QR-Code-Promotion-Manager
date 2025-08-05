@@ -11,6 +11,8 @@ const {
   updateProfile,
   updateProfileWithLogo,
   updateLegalConsents,
+  verifyEmail,
+  resendVerification
 } = require('../controllers/auth');
 
 const { protect } = require('../middleware/auth');
@@ -30,5 +32,9 @@ router.put('/legal-consents', protect, updateLegalConsents);
 // Password reset routes (pubbliche - senza protect)
 router.post('/forgotpassword', forgotPassword);
 router.put('/resetpassword/:resettoken', resetPassword);
+
+// Email verification routes (pubbliche - senza protect)
+router.get('/verify-email/:token', verifyEmail);
+router.post('/resend-verification', resendVerification);
 
 module.exports = router;

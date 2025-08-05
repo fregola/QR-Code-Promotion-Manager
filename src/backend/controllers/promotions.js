@@ -24,6 +24,11 @@ exports.getPromotions = async (req, res) => {
 
     // Execute query
     const promotions = await query;
+    const promotionsWithUsage = promotions.map(promotion => {
+      const promotionObj = promotion.toObject();
+      promotionObj.usedQRCount = promotion.qrCodes.filter(qr => qr.usageCount >= qr.maxUsageCount).length;
+      return promotionObj;
+    });
 
     // Pagination result
     const pagination = {};
@@ -46,7 +51,7 @@ exports.getPromotions = async (req, res) => {
       success: true,
       count: promotions.length,
       pagination,
-      data: promotions
+      data: promotionsWithUsage
     });
   } catch (err) {
     res.status(400).json({
@@ -225,4 +230,5 @@ exports.deletePromotion = async (req, res) => {
       error: err.message
     });
   }
-};
+}
+

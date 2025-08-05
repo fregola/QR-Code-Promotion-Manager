@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Typography,
@@ -30,10 +30,12 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import ShareDialog from '../components/ShareDialog';
+import { useAuth } from '../context/AuthContext';
 
 const QRCodeDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [qrCode, setQrCode] = useState(null);
@@ -62,21 +64,47 @@ const QRCodeDetail = () => {
     }
   }, [id]);
 
-  const loadShareHistory = useCallback(() => {
-    if (qrCode?.code) {
-      const savedHistory = localStorage.getItem(`share_history_${qrCode.code}`);
-      if (savedHistory) {
-        setShareHistory(JSON.parse(savedHistory));
-      }
-    }
-  }, [qrCode?.code]);
-
-  // Carica la cronologia quando qrCode è disponibile
+  // Carica cronologia condivisioni dalle API
   useEffect(() => {
-    if (qrCode?.code) {
-      loadShareHistory();
-    }
-  }, [qrCode?.code, loadShareHistory]);
+    const loadShareHistory = async () => {
+      if (!qrCode?.code || !token) return;
+      
+      try {
+        const response = await fetch(`/api/qrcodes/${qrCode.code}/shares`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const formattedHistory = result.data.shares.map(share => ({
+            id: share._id,
+            platform: share.platform,
+            message: share.message,
+            recipient: share.recipient,
+            timestamp: new Date(share.timestamp).toLocaleString('it-IT')
+          }));
+          setShareHistory(formattedHistory);
+        } else {
+          // Fallback a localStorage se API fallisce
+          const savedHistory = localStorage.getItem(`share_history_${qrCode.code}`);
+          if (savedHistory) {
+            setShareHistory(JSON.parse(savedHistory));
+          }
+        }
+      } catch (error) {
+        console.error('Errore nel caricare cronologia:', error);
+        // Fallback a localStorage
+        const savedHistory = localStorage.getItem(`share_history_${qrCode.code}`);
+        if (savedHistory) {
+          setShareHistory(JSON.parse(savedHistory));
+        }
+      }
+    };
+
+    loadShareHistory();
+  }, [qrCode?.code, token]);
 
   const handleBack = () => {
     navigate(-1);
@@ -95,10 +123,28 @@ const QRCodeDetail = () => {
   const handleShareDialogClose = () => {
     setShareDialogOpen(false);
     // Ricarica la cronologia quando il dialog si chiude
-    loadShareHistory();
+    if (qrCode?.code && token) {
+      fetch(`/api/qrcodes/${qrCode.code}/shares`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => response.json())
+      .then(result => {
+        if (result.success) {
+          const formattedHistory = result.data.shares.map(share => ({
+            id: share._id,
+            platform: share.platform,
+            message: share.message,
+            recipient: share.recipient,
+            timestamp: new Date(share.timestamp).toLocaleString('it-IT')
+          }));
+          setShareHistory(formattedHistory);
+        }
+      })
+      .catch(error => console.error('Errore nel ricaricare cronologia:', error));
+    }
   };
-
-
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
@@ -277,8 +323,6 @@ const QRCodeDetail = () => {
                     {qrCode.promotion.description}
                   </Typography>
                 )}
-                
-
 
                 <Grid container spacing={2} sx={{ mt: 1 }}>
                   <Grid item xs={12} sm={6}>

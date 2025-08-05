@@ -275,3 +275,105 @@ exports.getQRCodeByCode = async (req, res) => {
     });
   }
 };
+
+// @desc    Aggiungi condivisione a QR code
+// @route   POST /api/qrcodes/:code/share
+// @access  Private
+exports.addShare = async (req, res) => {
+  try {
+    const { code } = req.params;
+    const { platform, message, recipient } = req.body;
+    
+    if (!platform || !message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Platform e message sono obbligatori'
+      });
+    }
+    
+    const qrCode = await QRCode.findOne({ code });
+    if (!qrCode) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'QR Code non trovato' 
+      });
+    }
+
+    // Verifica che l'utente abbia accesso a questo QR code
+    const promotion = await Promotion.findById(qrCode.promotion);
+    if (promotion.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(401).json({
+        success: false,
+        error: 'Non autorizzato ad accedere a questo QR code'
+      });
+    }
+
+    // Aggiungi la condivisione
+    qrCode.shares.push({
+      platform,
+      message,
+      recipient,
+      timestamp: new Date(),
+      ipAddress: req.ip
+    });
+    
+    qrCode.totalShares = qrCode.shares.length;
+    qrCode.lastSharedAt = new Date();
+    
+    await qrCode.save();
+    
+    res.status(200).json({
+      success: true,
+      data: {
+        shares: qrCode.shares.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+        totalShares: qrCode.totalShares,
+        lastSharedAt: qrCode.lastSharedAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};
+
+// @desc    Recupera cronologia condivisioni
+// @route   GET /api/qrcodes/:code/shares
+// @access  Private
+exports.getShares = async (req, res) => {
+  try {
+    const { code } = req.params;
+    
+    const qrCode = await QRCode.findOne({ code }).select('shares totalShares lastSharedAt promotion');
+    if (!qrCode) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'QR Code non trovato' 
+      });
+    }
+
+    // Verifica che l'utente abbia accesso a questo QR code
+    const promotion = await Promotion.findById(qrCode.promotion);
+    if (promotion.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
+      return res.status(401).json({
+        success: false,
+        error: 'Non autorizzato ad accedere a questo QR code'
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        shares: qrCode.shares ? qrCode.shares.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) : [],
+        totalShares: qrCode.totalShares || 0,
+        lastSharedAt: qrCode.lastSharedAt
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+};

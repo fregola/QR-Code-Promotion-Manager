@@ -23,6 +23,10 @@ import QRCodesList from './pages/QRCodesList';
 import PromotionStats from './pages/PromotionStats';
 import Stats from './pages/Stats';
 import Account from './pages/Account';
+import EmailVerified from './pages/EmailVerified';
+import CheckEmail from './pages/CheckEmail';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UserManagement from './pages/admin/UserManagement';
 import NotFound from './pages/NotFound';
 import PublicQRCodeDetail from './pages/PublicQRCodeDetail';
 
@@ -68,6 +72,8 @@ function App() {
         <Route path="/terms" element={<TermsAndConditions />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/cookies" element={<CookiePolicy />} />
+        <Route path="/email-verified" element={<EmailVerified />} />
+        <Route path="/check-email" element={<CheckEmail />} />
         
         {/* ROUTE PROTETTE */}
         <Route path="/" element={
@@ -86,6 +92,9 @@ function App() {
           <Route path="scanner" element={<QRCodeScanner />} />
           <Route path="stats" element={<Stats />} />
           <Route path="account" element={<Account />} />
+	  <Route path="admin" element={<AdminDashboard />} />
+	  <Route path="admin/users" element={<UserManagement />} />
+
         </Route>
         
         <Route path="*" element={<NotFound />} />

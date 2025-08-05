@@ -29,6 +29,7 @@ import {
   Logout as LogoutIcon,
   BarChart as BarChartIcon,
   AccountCircle as AccountCircleIcon,
+  AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 
@@ -115,6 +116,7 @@ const Layout = () => {
     { text: 'Scanner QR', icon: <QrCodeIcon />, path: '/scanner' },
     { text: 'Statistiche', icon: <BarChartIcon />, path: '/stats' },
     { text: 'Il mio account', icon: <AccountCircleIcon />, path: '/account' },
+    ...(user?.role === 'admin' ? [{ text: 'Admin', icon: <AdminIcon />, path: '/admin' }] : []),
   ];
 
   return (

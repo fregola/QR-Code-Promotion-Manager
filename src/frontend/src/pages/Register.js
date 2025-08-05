@@ -62,7 +62,7 @@ const Register = () => {
   useEffect(() => {
     // Redirect if already authenticated
     if (isAuthenticated) {
-      navigate('/');
+      navigate(`/check-email?email=${encodeURIComponent(formData.email)}`);
     }
   }, [isAuthenticated, navigate]);
 
@@ -172,7 +172,11 @@ const Register = () => {
       });
       
       if (success) {
-        navigate('/');
+        // Registrazione riuscita - vai alla pagina controllo email
+        navigate(`/check-email?email=${encodeURIComponent(formData.email)}`);
+      } else {
+        // Anche se fallisce, mostra la pagina email (l'utente potrebbe essere stato creato)
+        navigate(`/check-email?email=${encodeURIComponent(formData.email)}`);
       }
     }
   };

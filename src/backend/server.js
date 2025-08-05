@@ -25,6 +25,7 @@ app.use('/uploads/logos', express.static(path.join(__dirname, '../../uploads/log
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/promotions', require('./routes/promotions'));
 app.use('/api/qrcodes', require('./routes/qrcodes'));
+app.use('/api/admin', require('./routes/admin'));
 
 // Serve static assets in production
 if (process.env.NODE_ENV === 'production') {

@@ -25,8 +25,25 @@ exports.protect = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id);
 
+    // Verifica che l'utente esista
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        error: 'Token non valido - utente non trovato'
+      });
+    }
+
+    // Verifica che l'utente sia attivo (solo se il campo esiste)
+    if (user.isActive === false) {
+      return res.status(401).json({
+        success: false,
+        error: 'Account disabilitato. Contatta l\'amministratore.'
+      });
+    }
+
+    req.user = user;
     next();
   } catch (err) {
     return res.status(401).json({
